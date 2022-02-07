@@ -36,12 +36,12 @@ jobs:
           user: "__token__"
           password: ${{ secrets.PYPI_TOKEN }}
 
-      - name: Release
-        uses: "marvinpinto/action-automatic-releases@latest"
-        with: 
-          repo_token: "${{ secrets.GH_TOKEN }}"
-          prerelease: false
-          files: |
-            dist/*
+      # - name: Release
+      #   uses: "marvinpinto/action-automatic-releases@latest"
+      #   with: 
+      #     repo_token: "${{ secrets.GH_TOKEN }}"
+      #     prerelease: false
+      #     files: |
+      #       dist/*
 
 

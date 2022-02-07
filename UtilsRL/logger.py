@@ -2,11 +2,12 @@ import os
 import json
 import pickle
 import numpy as np
-from typing import Optional, Sequence, Union, Dict
-from datetime import datetime as datetime
 
-from tensorboardX import SummaryWriter
+from datetime import datetime as datetime
+from torch.utils.tensorboard import SummaryWriter
+
 from abc import ABC, abstractmethod
+from typing import Optional, Sequence, Union, Dict, Any
 
 numpy_compatible = np.ndarray
 try:
@@ -15,8 +16,9 @@ try:
 except ImportError:
     pass
 
+
 class BaseLogger(object):
-    def __init__(self, log_path, name, terminal=True, txt=False, purge_step=None, warning_level=3, *args, **kwargs):
+    def __init__(self, log_path, name, terminal=True, txt=False, warning_level=3, *args, **kwargs):
         if not (terminal or txt):
             raise ValueError("At least one of the terminal and log file should be enabled.")
         self.unique_name = self.make_unique_name(name)
@@ -25,7 +27,7 @@ class BaseLogger(object):
         if not os.path.exists(log_path):
             os.makedirs(log_path)
         
-        self.tb_writer = SummaryWriter(self.log_path, purge_step=purge_step)
+        self.tb_writer = SummaryWriter(self.log_path)
         self.txt = txt
         if self.txt:
             self.txt_path = os.path.join(self.log_path, "logs.txt")
@@ -71,10 +73,10 @@ class BaseLogger(object):
         }
         time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         if self.terminal:
-            print("{}[{}]{}\t{}".format(cmap[type], time_fmt, cmap["RESET"], s.format(*args)))
+            print("{}[{}]{}\t{}".format(cmap[type], time_fmt, cmap["RESET"], s))
         if self.txt:
             with open(self.txt_path, "a+") as f:
-                f.write("[{}]\t{}\n".format(time_fmt, s.format(*args)))
+                f.write("[{}]\t{}\n".format(time_fmt, s))
 
     def log_scalar(
         self, 
@@ -95,7 +97,7 @@ class BaseLogger(object):
         main_tag: str, 
         tag_scalar_dict: Dict[str, Union[float, numpy_compatible]], 
         step: Optional[int] = None):
-        """Adds many scalar data to summary. 
+        """Log many scalar data. 
         Note that this function also keeps logged scalars in memory. In extreme case it explodes your RAM.
 
         Args:
@@ -130,7 +132,7 @@ class BaseLogger(object):
         img_tensor: numpy_compatible, 
         step: Optional[int] = None, 
         dataformat: Optional[str] = "CHW"):
-        """Add image data to summary.
+        """Log image.
         Note that this requires the ``pillow`` package.
 
         Args:
@@ -158,7 +160,7 @@ class BaseLogger(object):
         step: Optional[int] = None, 
         fps: Optional[Union[int, float]] = 4, 
         dataformat: Optional[str] = "NTCHW"):
-        """Add video data to summary.
+        """Log video data.
 
         Note that this requires the ``moviepy`` package.
 
@@ -174,6 +176,48 @@ class BaseLogger(object):
             for type `uint8` or [0, 1] for type `float`.
         """
         self.tb_writer.add_video(tag, vid_tensor, step, fps, dataformats=dataformat)
+
+    def log_object(
+        self,
+        name: str, 
+        object: Any, 
+        path: Optional[str] = None):
+        """Log python object to a given path.
+        
+        Args: 
+            name: name of the object.
+            object: The python object to save.
+            path: The directory to save the object. If the value None, then 
+                the logger will use self.log_path.
+        """
+
+        if path is None:
+            path = self.log_path
+        if not os.path.exists(path):
+            os.makedirs(path)
+        with open(os.path.join(path, name), "wb") as fp:
+            pickle.dump(object, fp)
+        self.log_str(f"Saved object to {os.path.join(path, name)}", type="LOG", level=2)
+    
+    def load_object(
+        self,
+        name: str, 
+        path: Optional[str] = None):
+        """Restore saved object.
+
+        Args: 
+            name: name of the object, used to index the binary file in path. 
+            path: The directory to search for the file. If None, then logger 
+                will look up in self.log_path.
+        """
+
+        if path is None:
+            path = self.log_path
+        with open(os.path.join(path, name), "rb") as fp:
+            obj = pickle.load(fp)
+        self.log_str(f"Load object from {os.path.join(path, name)}", type="LOG", level=2)
+        return obj
+          
 
     def __enter__(self):
         return self
