@@ -105,8 +105,10 @@ class BaseLogger(object):
             tag_scalar_dict: Key-value pair storing the tag and corresponding values
             step: Global step value to record
         """
-
-        self.tb_writer.add_scalars(main_tag, tag_scalar_dict, step)
+        if main_tag is None:
+            main_tag = ""
+        for tag, value in tag_scalar_dict.items():
+            self.tb_writer.add_scalar("/".join([main_tag, tag]), value, step)
 
     def log_dict(
         self, 
