@@ -52,7 +52,9 @@ class BaseLogger(object):
     def log_str(
         self, 
         s: str, 
-        type: str = "LOG",
+        type: Optional[str] = None,
+        terminal: bool = True, 
+        txt: bool = True, 
         level: int = 4, 
         *args, **kwargs):
         """Log string to terminal (if self.terminal is True) and txt file (if self.txt is True).
@@ -65,6 +67,7 @@ class BaseLogger(object):
         if level < self.warning_level:
             return
         cmap = {
+            None: "\033[0m", 
             "ERROR": "\033[1;31m", 
             "LOG": "\033[1;34m", 
             "SUCCESS": "\033[1;32m",
@@ -72,9 +75,9 @@ class BaseLogger(object):
             "RESET": "\033[0m"
         }
         time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        if self.terminal:
+        if self.terminal and terminal:
             print("{}[{}]{}\t{}".format(cmap[type], time_fmt, cmap["RESET"], s))
-        if self.txt:
+        if self.txt and txt:
             with open(self.txt_path, "a+") as f:
                 f.write("[{}]\t{}\n".format(time_fmt, s))
 
