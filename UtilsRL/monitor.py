@@ -10,7 +10,7 @@ from smtplib import SMTP_SSL
 from email.mime.text import MIMEText
 
 from UtilsRL.third_party.tqdm import tqdm_tty, tqdm_notebook, tqdm_file
-from UtilsRL.logger import BaseLogger
+from UtilsRL.logger import BaseLogger, DummyLogger
 
 from typing import Optional, Sequence, Union, Callable
 
@@ -72,7 +72,7 @@ class Monitor(object):
     def __init__(self,
                  desc: Optional[str] = None, 
                  out_dir: Optional[str] = None, 
-                 logger: BaseLogger = None, 
+                 logger: Optional[BaseLogger] = None, 
                  *args, **kwargs):
         """Monitor the training iteration. 
 
@@ -84,7 +84,7 @@ class Monitor(object):
         self.desc = desc if tqdm_cls == tqdm_file else "\033[1;37m[{}]\033[0m".format(desc)
         self.tqdm_cls = tqdm_cls
         self.out_dir = out_dir
-        self.logger = logger
+        self.logger = logger if logger else DummyLogger()
         self.args = args
         self.kwargs = kwargs
 

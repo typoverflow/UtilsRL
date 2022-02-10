@@ -16,9 +16,29 @@ try:
 except ImportError:
     pass
 
+class BaseLogger(ABC):
+    def __init__(self, *args, **kwargs):
+        pass
 
-class BaseLogger(object):
+    @abstractmethod
+    def log_str(self, msg, *args, **kwargs):
+        raise NotImplementedError
+
+class DummyLogger(BaseLogger):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def log_str(self, msg, *args, **kwargs):
+        print(msg)
+
+
+class TensorboardLogger(BaseLogger):
+    """TensorBoard Logger with full data-type support.
+    """
+
     def __init__(self, log_path, name, terminal=True, txt=False, warning_level=3, *args, **kwargs):
+        super(TensorboardLogger, self).__init__()
+
         if not (terminal or txt):
             raise ValueError("At least one of the terminal and log file should be enabled.")
         self.unique_name = self.make_unique_name(name)
