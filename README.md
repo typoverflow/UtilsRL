@@ -16,7 +16,7 @@ monitor = Monitor(desc="test_monitor")
 for i in monitor.listen(range(5)):
     time.sleep(0.1)
 ```
-you can register callback functions which will be triggered at certain stage of the training:
+You can **register callback functions** which will be triggered at certain stage of the training. For example, we can register a callback which will email us when training is done: 
 ```python
 monitor = Monitor(desc="test_monitor")
 monitor.register_callback(
@@ -26,23 +26,38 @@ monitor.register_callback(
     ...
 )
 ```
-you can also register `context` variables for training, which will be automatically managed by monitor. In the example below, the registered context variables (i.e. `self.actor` and `local_var` ) will be saved every 100 iters.
+You can also **register context variables** for training, which will be automatically managed by monitor. In the example below, the registered context variables (i.e. `self.actor` and `local_var` ) will be saved every 100 iters.
 ```python
 monitor = Monitor(desc="test_monitor", out_dir="./out")
+def train():
+    local_var = ...
+    local_var = monitor.register_context(local_var, save_every=100)
+    for i_epoch in monitor.listen(range(1000)):
+        # do training
+train()
+```
 
+
+As a more complex example, we can use the Monitor to **resume training from a certain iteration**, and restore the context variables from checkpoints:
+```python
 class Trainer():
     def __init__(self):
         self.actor = ...
     
     def train(self):
         local_var = ...
-        monitor.register_context(["self.actor", "local_var"], save_every=100)
-        for i_epoch in monitor.listen(range(1000)):
-            # do training
+        
+        # load previous saved checkpoints specified by `load_path`
+        self.actor, local_var = \
+            monitor.register_context(["self.actor", "local_var"], load_path="/path/to/checkpoint/dir").values()
+        # use `initial` to designate the start point
+        for i_epoch in monitor.listen(range(1000), initial=100):
+            # continue training
 ```
 
 ### Logger
 Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
+
 ```python
 from UtilsRL.logger import BaseLogger
 
