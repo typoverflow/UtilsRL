@@ -1,5 +1,5 @@
-# RLUtils
-An python util module designed for reinforcement learning. It provides a list of util functions or classes, such as loggers, experiment monitors and etc.
+# UtilsRL
+A util python module designed for reinforcement learning. 
 
 ## Installation
 You can install this package directly from pypi:
@@ -8,9 +8,41 @@ pip install UtilsRL
 ```
 After installation, you may still need to configure some other dependencies based on your platform, such as PyTorch.
 
-## Usage
-Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
+## Features & Usage
+### Monitor
+Monitor listens at the main loop of the training process, and displays the process with tqdm meter. 
+```python
+monitor = Monitor(desc="test_monitor")
+for i in monitor.listen(range(5)):
+    time.sleep(0.1)
+```
+you can register callback functions which will be triggered at certain stage of the training:
+```python
+monitor = Monitor(desc="test_monitor")
+monitor.register_callback(
+    name= "email me at the end of training", 
+    on = "exit", 
+    callback = Monitor.email, 
+    ...
+)
+```
+you can also register `context` variables for training, which will be automatically managed by monitor. In the example below, the registered context variables (i.e. `self.actor` and `local_var` ) will be saved every 100 iters.
+```python
+monitor = Monitor(desc="test_monitor", out_dir="./out")
+
+class Trainer():
+    def __init__(self):
+        self.actor = ...
+    
+    def train(self):
+        local_var = ...
+        monitor.register_context(["self.actor", "local_var"], save_every=100)
+        for i_epoch in monitor.listen(range(1000)):
+            # do training
+```
+
 ### Logger
+Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
 ```python
 from UtilsRL.logger import BaseLogger
 
@@ -30,5 +62,6 @@ logger.log_scalas(main_tag="group_name", tag_scalar_dict={
 }, step=1)
 ```
 
-### Monitor
-Monitor is designed for monitoring the process of training and the management of certain events. 
+## Under Development
++ device utils
++ arg-parsing utils

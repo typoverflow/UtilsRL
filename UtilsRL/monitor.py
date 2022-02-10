@@ -1,5 +1,3 @@
-from email.mime.text import MIMEText
-from smtplib import SMTP_SSL, SMTP
 import os
 import sys
 import copy
@@ -8,8 +6,12 @@ import contextlib
 import atexit
 import inspect
 import pickle
+from smtplib import SMTP_SSL
+from email.mime.text import MIMEText
+
 from UtilsRL.third_party.tqdm import tqdm_tty, tqdm_notebook, tqdm_file
 from UtilsRL.logger import BaseLogger
+
 from typing import Optional, Sequence, Union, Callable
 
 tqdm_cls = None
@@ -39,6 +41,16 @@ class MonitorError(Exception):
 
 
 class Monitor(object):
+    """Monitor is designed to monitor the main for loog of the training process. 
+        It currently supports for 3 purposes:
+        - Monitor.listen() wraps a iterable and visualize the progress meter just like tqdm does, 
+            but Monitor identifies output (tty or file) and adjust its behavior accordingly.
+        - Monitor.register_callback() registers a callback function which will be called when
+            the condition is satisfied. A simple usage is to send yourself an email for notification 
+            when training is done. 
+        - Monitor.register_context() registers group of variables as `context`. Monitor will save the context 
+            variables periodically and restore them if the training is resumed from a checkpoint.
+    """
 
     @staticmethod
     def eval_outer(expr):
@@ -66,8 +78,8 @@ class Monitor(object):
 
         Args: 
             desc: Description of the Monitor.
-            logger: Hook of the Logger object for internal use.
-        
+            out_dir: Output directory of the products. Must be specified if to use register_context.
+            logger: Hook of the Logger object for internal use. If set to None, a dummy logger will be used.
         """
         self.desc = desc if tqdm_cls == tqdm_file else "\033[1;37m[{}]\033[0m".format(desc)
         self.tqdm_cls = tqdm_cls
@@ -84,11 +96,16 @@ class Monitor(object):
     def listen(self,
                 iterable = None, 
                 initial: Optional[int] = 0, 
-                restore_context: Union[bool, str] = True, 
                 total: Optional[int] = None, 
                 miniters: Optional[int] = None):
-        """Set the monitor to listen at a certain iteration. Note that
-           a monitor can be assigned to listening only once. 
+        """Set the monitor to listen at a certain iteration. Note that a monitor can be assigned 
+            for listening only once.
+
+        Args: 
+            iterable: The Iterable object to wrap up.
+            initial: Startpoint of the iteration.
+            total: Total number of iteration. If left None, total will be set to `len(iterable)`.
+            miniters: Minimum number of iterations between two updates. If set to None, it will be set to 1.
         """
 
         if hasattr(self, "iterable") and self.iterable is not None:
@@ -97,7 +114,6 @@ class Monitor(object):
         self.iterable = iterable
         self.tqdm = self.tqdm_cls(iterable, self.desc, total=total, initial=initial, miniters=miniters)
         self.total = self.tqdm.total
-        self.restore_context = restore_context
         self.initial = initial
         self.miniters = self.tqdm.miniters
         
@@ -119,7 +135,9 @@ class Monitor(object):
                 - int, then the callback will be called at the beginning of `on`th iteration. 
                 - str which represents a percentage, then the callback will be called at this
                     stage of training.  
-            callback: the callback funtion. It will take args and kwargs as input. 
+            callback: the callback funtion. It will take args and kwargs as input, and self.global_step
+                will also be added as keyward argument. So when defining a callbackj function, it's 
+                better to receive redundant kwargs with `**kwargs`.
         """
         self.has_callbacks = True
         if on is None or on == False:
@@ -154,6 +172,19 @@ class Monitor(object):
             })
 
     def register_context(self, expressions, save_every=None, save_mode="replace", load_path=None):
+        """Register variables as context. Monitor will save the context variables 
+            periodically and restore them if the training is resumed from a checkpoint.
+
+        Args:
+            expressions: The expressions of the variables which you wish to designate as context. 
+            save_every: save the context every `save_every` iterations. If set to None, the context 
+                will not be saved. 
+            save_mode: Specifies the mode of saving. Possibile values are:
+                - "replace": replace previously saved context. 
+                - "append": save context without replacing. 
+            load_path: Specifies the path of the checkpoint of the context to load. If set to None, 
+                the context will not be loaded.
+        """
         if self.out_dir is None:
             raise MonitorError("Before using trace, you must specify the output directory.")
         if save_every is None or save_every == False:
