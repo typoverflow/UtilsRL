@@ -31,7 +31,7 @@ You can also **register context variables** for training, which will be automati
 monitor = Monitor(desc="test_monitor", out_dir="./out")
 def train():
     local_var = ...
-    local_var = monitor.register_context(local_var, save_every=100)
+    local_var = monitor.register_context("local_var", save_every=100)
     for i_epoch in monitor.listen(range(1000)):
         # do training
 train()
@@ -59,10 +59,10 @@ class Trainer():
 Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
 
 ```python
-from UtilsRL.logger import BaseLogger
+from UtilsRL.logger import TensorboardLogger
 
 # create a logger, with terminal output enabled and file logging disabled
-logger = BaseLogger(log_dir="./logs", name="debug", terminal=True, txt=False) 
+logger = TensorboardLogger(log_dir="./logs", name="debug", terminal=True, txt=False) 
 
 # log a sentence in color blue.
 logger.log_str("This is a sentence", type="LOG")
