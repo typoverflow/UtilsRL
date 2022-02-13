@@ -15,7 +15,7 @@ setup(
     author              = "typoverflow", 
     author_email        = "typoverflow@outlook.com", 
     license             = "MIT", 
-    packages            = ["UtilsRL"],
+    packages            = find_packages(),
     include_package_data = True, 
     install_requires = [
         "numpy>=1.18.0", 
