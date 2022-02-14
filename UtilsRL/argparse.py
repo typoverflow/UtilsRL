@@ -2,7 +2,7 @@ from collections import OrderedDict
 from types import ModuleType, FrameType
 from typing import Optional, OrderedDict, Union, Dict, Any
     
-from UtilsRL.misc import NameSpace, NameSpaceMeta
+from UtilsRL.misc.namespace import NameSpace, NameSpaceMeta
 
 def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Dict[str, Any]:
     """
