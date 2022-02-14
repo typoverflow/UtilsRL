@@ -1,3 +1,4 @@
+import sys
 import inspect
 from typing import Any, Dict
 
@@ -108,7 +109,10 @@ class NameSpaceMeta(type):
 
     def __update__(cls, key, value):
         cls._data_[key] = value
+        
+    def __contains__(cls, __obj):
+        return __obj in cls._data_
+    
 
 class NameSpace(metaclass = NameSpaceMeta):
     pass
-

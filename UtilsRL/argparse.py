@@ -3,6 +3,7 @@ from types import ModuleType, FrameType
 from typing import Optional, OrderedDict, Union, Dict, Any
     
 from UtilsRL.misc.namespace import NameSpace, NameSpaceMeta
+from UtilsRL.misc.chore import safe_eval
 
 def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Dict[str, Any]:
     """
@@ -28,13 +29,21 @@ def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Di
     else:
         return args
     
-def update_args(args, new_args):
+def update_args(args, new_args: Optional[Union[dict, list]] = None):
+    if new_args is None:
+        return args
+    if isinstance(new_args, list):
+        num = len(new_args)//2
+        new_args = dict(zip([new_args[2*i] for i in range(num)], [new_args[2*i+1] for i in range(num)]))
     for key, value in new_args.items():
+        for _ in range(2):
+            if key[0] == "-":
+                key = key[1:]
         _key = key.split("/")
         _final = args
         for k in _key[:-1]:
             _final = _final[k]
-        _final[_key[-1]] = value
+        _final[_key[-1]] = safe_eval(value)
     return args
             
     
