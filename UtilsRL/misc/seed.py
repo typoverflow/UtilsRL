@@ -2,7 +2,6 @@ import torch
 import random
 import numpy as np
 
-__all__ = ( "set_seed" )
 
 def set_seed(seed=None):
     if seed is None:

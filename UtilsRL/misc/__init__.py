@@ -1,6 +1,6 @@
-from .seed import *
-from .device import *
-from .namespace import *
+from UtilsRL.misc.seed import *
+from UtilsRL.misc.device import *
+from UtilsRL.misc.namespace import *
 from UtilsRL.logger import BaseLogger, DummyLogger
 
 from typing import Any, Optional

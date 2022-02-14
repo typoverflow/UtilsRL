@@ -18,7 +18,6 @@ setup(
     packages            = find_packages(),
     include_package_data = True, 
     install_requires = [
-        "numpy>=1.18.0", 
         "cloudpickle>=1.2.0", 
     ], 
     tests_require=["pytest", "mock"], 

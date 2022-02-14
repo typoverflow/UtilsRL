@@ -1,7 +1,6 @@
 import os
 import torch
 
-__all__ = ( "select_device" )
 
 def select_device(id=None):
     if not torch.cuda.is_available() or id=="cpu":
