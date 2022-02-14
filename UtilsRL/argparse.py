@@ -1,14 +1,10 @@
-from UtilsRL.misc import NameSpace
-
 from collections import OrderedDict
 from types import ModuleType, FrameType
 from typing import Optional, OrderedDict, Union, Dict, Any
-
-class ParserError(Exception):
-    pass
-
     
-def parse_args(args: Optional[Union[str, dict, ModuleType]]) -> Dict[str, Any]:
+from UtilsRL.misc import NameSpace, NameSpaceMeta
+
+def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Dict[str, Any]:
     """
     parse args from json file, yaml, python file or plain old dict. 
     """
@@ -25,9 +21,22 @@ def parse_args(args: Optional[Union[str, dict, ModuleType]]) -> Dict[str, Any]:
         args = _parse_args_from_module(args)
         
     if not isinstance(args, dict):
-        raise ParserError("Unsupported args type: {}".format(type(args)))
+        raise TypeError("Unsupported args type: {}".format(type(args)))
     
-    return NameSpace("args", args)
+    if convert: 
+        return NameSpace("args", args, nested=convert)
+    else:
+        return args
+    
+def update_args(args, new_args):
+    for key, value in new_args.items():
+        _key = key.split("/")
+        _final = args
+        for k in _key[:-1]:
+            _final = _final[k]
+        _final[_key[-1]] = value
+    return args
+            
     
 def _parse_args_from_module(module: ModuleType):
     """
@@ -43,8 +52,3 @@ def _parse_args_from_module(module: ModuleType):
             config[key] = val
     
     return config
-
-if __name__ == "__main__":
-    import tests.test as test
-    file = "./tests/test.json"
-    print(parse_args(file))

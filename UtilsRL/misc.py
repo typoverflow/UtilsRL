@@ -1,10 +1,11 @@
 import inspect
+from re import L
 import sys
 from typing import Any, Dict
 
 __all__ = (
     "get_var_name", "_is_descriptor", "_is_dunder", "_is_sunder", 
-    "NameSpace"
+    "NameSpaceMeta", "NameSpace"
 )
 
 def get_var_name(var):
@@ -44,14 +45,14 @@ class NameSpaceMeta(type):
         x._data_ = {k:v for k, v in dct.items() if not _is_dunder(k) and not _is_sunder(k)}
         return x
     
-    def __call__(cls, name: str, maps: Dict[str, Any], *, module=None, qualname=None, type=None):
+    def __call__(cls, name: str, maps: Dict[str, Any], nested=True, *, module=None, qualname=None, type=None):
         meta_cls = cls.__class__
         bases = (cls, ) if type is None else (type, cls)
         classdict = {}
         for key, value in maps.items():
             if _is_dunder(key) or _is_sunder(key):
                 raise KeyError("NameSpace does not support for dunder keys or sunder keys: {}".format(key))
-            if isinstance(value, dict):
+            if nested and isinstance(value, dict):
                 classdict[key] = NameSpace.__call__(key, value, module=module, qualname=qualname, type=type)
             else:
                 classdict[key] = value
@@ -101,7 +102,19 @@ class NameSpaceMeta(type):
             return type.__getattribute__(cls, __name)
         else:
             return cls._data_[__name]
+        
+    def __eq__(cls, __obj: Any) -> bool:
+        if type(cls) != NameSpaceMeta or type(cls) != type(__obj):
+            return False
+        if cls._data_.keys() != __obj._data_.keys():
+            return False
+        for key, value in cls._data_.items():
+            if value != __obj._data_[key]:
+                return False
+        return True
 
+    def __update__(cls, key, value):
+        cls._data_[key] = value
 
 class NameSpace(metaclass = NameSpaceMeta):
     pass
