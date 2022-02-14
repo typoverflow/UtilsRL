@@ -34,6 +34,8 @@ def _is_sunder(name):
     )
 
 class NameSpaceMeta(type):
+    """Meta class for NameSpace. """
+    
     def __new__(cls, name, bases, dct):
         x = super(NameSpaceMeta, cls).__new__(cls, name, bases, dct)
         x._data_ = {k:v for k, v in dct.items() if not _is_dunder(k) and not _is_sunder(k)}
@@ -115,4 +117,7 @@ class NameSpaceMeta(type):
     
 
 class NameSpace(metaclass = NameSpaceMeta):
+    """So that we can inherit from this class, rather than
+        designating the meta class to NameSpaceMeta for each scope. 
+    """
     pass

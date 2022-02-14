@@ -3,13 +3,14 @@ import torch
 
 
 def select_device(id=None):
-    """Selects the device according to given id.
-    
-    Args: 
-        id: If None, then a free cuda will be selected. If "cpu" or gpu is 
-            not available, then cpu device will be returned. Otherwise, check
-            whether the given device is valid and return that device if so.
+    """Selects the device according to given ID. ID can be:
+        - (if torch.cuda.is_available() is False, then cpu will be selected anyway.)
+        - None, then a most free GPU will be selected for use. 
+        - "cpu", then cpu will be returned.
+        - int or "x" or "cuda:x", then gpu with corresponding ID will be 
+            selected unless `id` or `x` < 0. 
     """
+    
     if isinstance(id, torch.device):
         return id
     if not torch.cuda.is_available() or id == "cpu":
