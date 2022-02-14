@@ -61,9 +61,9 @@ class TensorboardLogger(BaseLogger):
         suffix = now.strftime("%m-%d-%H-%M")
         pid_str = os.getpid()
         if name == "":
-            return f"{name}-{suffix}-{pid_str}"
-        else:
             return f"{suffix}-{pid_str}"
+        else:
+            return f"{name}-{suffix}-{pid_str}"
 
     @property
     def log_dir(self):
