@@ -12,9 +12,9 @@ from email.mime.text import MIMEText
 from UtilsRL.third_party.tqdm import tqdm_tty, tqdm_notebook, tqdm_file
 from UtilsRL.logger import BaseLogger, DummyLogger
 
-from typing import Optional, Sequence, Union, Callable
+from typing import Optional, Sequence, Union, Callable, Any
 
-tqdm_cls = None
+tqdm_cls: Any = None
 try:
     ipy_str = str(type(get_ipython()))
     if 'zmqshell' in ipy_str:

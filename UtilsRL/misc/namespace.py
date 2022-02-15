@@ -83,7 +83,7 @@ class NameSpaceMeta(type):
             
     def __setitem__(cls, __name: str, __value: Any) -> None:
         if _is_dunder(__name) or _is_sunder(__name):
-            return type.__setitem__(cls, __name, __value)
+            raise KeyError("NameSpace does not support for dunder keys or sunder keys: {}".format(__name))
         else:
             cls._data_[__name] = __value
     

@@ -4,7 +4,7 @@ import pickle
 import numpy as np
 
 from datetime import datetime as datetime
-from torch.utils.tensorboard import SummaryWriter
+from torch.utils.tensorboard.writer import SummaryWriter
 
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence, Union, Dict, Any
@@ -200,7 +200,7 @@ class TensorboardLogger(BaseLogger):
             vid_tensor: :math:`(N, T, C, H, W)`. The values should lie in [0, 255]
             for type `uint8` or [0, 1] for type `float`.
         """
-        self.tb_writer.add_video(tag, vid_tensor, step, fps, dataformats=dataformat)
+        self.tb_writer.add_video(tag, vid_tensor, step, fps)
 
     def log_object(
         self,

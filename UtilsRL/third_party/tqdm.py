@@ -11,7 +11,7 @@ from tqdm import tqdm_notebook
 from tqdm import tqdm as tqdm
 from tqdm.std import EMA, TqdmTypeError, TqdmKeyError, TqdmWarning, TqdmExperimentalWarning, TqdmMonitorWarning, TqdmDeprecationWarning
 
-__all__ = ("tqdm_tty", "tqdm_notebook", "tqdm_file")
+__all__ = ["tqdm_tty", "tqdm_notebook", "tqdm_file"]
 
 class tqdm_tty(tqdm):
     def __init__(self, *args, **kwargs):

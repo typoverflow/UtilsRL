@@ -5,7 +5,7 @@ from typing import Optional, OrderedDict, Union, Dict, Any
 from UtilsRL.misc.namespace import NameSpace, NameSpaceMeta
 from UtilsRL.misc.chore import safe_eval
 
-def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Dict[str, Any]:
+def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Union[Dict[str, Any], NameSpace]:
     """
     parse args from json file, yaml, python file or plain old dict. 
     
