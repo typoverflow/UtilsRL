@@ -6,7 +6,7 @@ import contextlib
 import atexit
 import inspect
 import pickle
-from smtplib import SMTP_SSL
+from smtplib import SMTP_SSL, SMTP
 from email.mime.text import MIMEText
 
 from UtilsRL.third_party.tqdm import tqdm_tty, tqdm_notebook, tqdm_file
@@ -59,13 +59,26 @@ class Monitor(object):
         return eval(expr, G, L)
 
     @staticmethod
-    def email(msg, to, user, password, host, port):
+    def email(msg, to, user, password, smtp_server=None, port=None):
+        def get_host(user):
+            return user.split("@")[1].split(".")[0]
+        host_info = {
+            "qq": ("smtp.qq.com", 587),
+            # "gmail": ("smtp.gmail.com", 587), 
+            "outlook": ("smtp.office365.com", 587)
+        }
+        if smtp_server is None or port is None:
+            host = get_host(user)
+            if host not in host_info:
+                raise KeyError("Host {} is not supported, current supported types are: {}".format(host, list(host_info.keys())))
+            smtp_server, port = host_info[host]
+            
         _msg = MIMEText(msg, "plain", _charset="utf-8")
         _msg["Subject"] = "An message from your program"
         _msg["from"] = "UtilsRL.Monitor"
 
-        with SMTP_SSL(host=host, port=port) as smtp:
-            # smtp.starttls()
+        with SMTP(host=smtp_server, port=port) as smtp:
+            smtp.starttls()
             smtp.login(user = user, password = password)
             smtp.sendmail(from_addr=user, to_addrs=to, msg=_msg.as_string())
 
