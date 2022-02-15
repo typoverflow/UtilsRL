@@ -88,6 +88,8 @@ class NameSpaceMeta(type):
             cls._data_[__name] = __value
     
     def __getattr__(cls, __name: str) -> Any:
+        if __name in ["items", "keys", "values"]:
+            return type.__getattribute__(cls, __name)
         if _is_dunder(__name) or _is_sunder(__name):
             return type.__getattribute__(cls, __name)
         else:
@@ -108,12 +110,21 @@ class NameSpaceMeta(type):
             if value != __obj._data_[key]:
                 return False
         return True
-
-    def __update__(cls, key, value):
-        cls._data_[key] = value
         
     def __contains__(cls, __obj):
         return __obj in cls._data_
+    
+    def __hash__(cls):
+        return hash(cls.__module__ + cls.__name__)
+
+    def keys(cls):
+        return cls._data_.keys()
+    
+    def values(cls):
+        return cls._data_.values()
+    
+    def items(cls):
+        return cls._data_.items()
     
 
 class NameSpace(metaclass = NameSpaceMeta):

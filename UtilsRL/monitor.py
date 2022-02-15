@@ -187,6 +187,7 @@ class Monitor(object):
     def register_context(self, expressions, save_every=None, save_mode="replace", load_path=None):
         """Register variables as context. Monitor will save the context variables 
             periodically and restore them if the training is resumed from a checkpoint.
+            Note: only one register_context call with valid save_every is permitted. 
 
         Args:
             expressions: The expressions of the variables which you wish to designate as context. 
@@ -198,34 +199,40 @@ class Monitor(object):
             load_path: Specifies the path of the checkpoint of the context to load. If set to None, 
                 the context will not be loaded.
         """
-        if self.out_dir is None:
-            raise MonitorError("Before using trace, you must specify the output directory.")
+        
+        if isinstance(expressions, str):
+            expressions = [expressions]
         if save_every is None or save_every == False:
             pass
         elif isinstance(save_every, int) and save_every >= 1:
-            self.has_context = True
+            if self.has_context:
+                raise MonitorError("Only one register_context call with valid save_every is permitted.")
+            if self.out_dir is None:
+                raise MonitorError("Before using monitor to save context, you must specify the output directory.")
             if save_mode not in ["replace", "append"]:
                 raise MonitorError("save_mode must be either 'replace' or 'append'.")
+            # save the infos for context saving
+            self.has_context = True
+            self.context = expressions
+            self.context_load_path = load_path
+            self.save_every = save_every
+            self.save_mode = save_mode
         else:
             raise MonitorError(f"Illegal value for save_every: {save_every}")
-        if isinstance(expressions, str):
-            expressions = [expressions]        
 
         ret_dict = dict()
         if load_path:
             # load obj from given path
             for expr in expressions:
-                with open(os.path.join(load_path, expr), "rb") as fp:
-                    ret_dict[expr] = pickle.load(fp)
+                if os.path.exists(os.path.join(load_path, expr)):
+                    with open(os.path.join(load_path, expr), "rb") as fp:
+                        ret_dict[expr] = pickle.load(fp)
+                else:
+                    ret_dict[expr] = Monitor.eval_outer(expr)
         else:
             # get reference from outer scope
             for expr in expressions:
                 ret_dict[expr] = Monitor.eval_outer(expr)
-
-        self.save_every = save_every
-        self.save_mode = save_mode
-        self.context = expressions
-        self.context_load_path = load_path
 
         return ret_dict if len(ret_dict) > 1 else ret_dict[expressions[0]]
     
