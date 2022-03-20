@@ -1,3 +1,4 @@
+import argparse
 from collections import OrderedDict
 from types import ModuleType, FrameType
 from typing import Optional, OrderedDict, Union, Dict, Any
@@ -7,7 +8,9 @@ from UtilsRL.misc.chore import safe_eval
 
 def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Union[NameSpace, Dict[str, Any]]:
     """
-    parse args from json file, yaml, python file or plain old dict. 
+    Parse args from json file, yaml, python file or plain old dict. 
+    Command-line argumnets will be parsed as well, and will be used to overwrite
+        the init arguments. 
     
     Args: 
         args: can be string or python module object. If it is string, it will be 
@@ -25,9 +28,21 @@ def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Un
             import yaml
             with open(args, "r") as fp:
                 args = yaml.safe_load(fp)
+        elif args.endswith(".py"):
+            import importlib.util
+            spec = importlib.util.spec_from_file_location("config_module", args)
+            foo = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(foo)
+            args = _parse_args_from_module(foo)
     elif isinstance(args, ModuleType):
         args = _parse_args_from_module(args)
         
+    # update with command line arguments
+    cmd_parser = argparse.ArgumentParser()
+    _, unknown = cmd_parser.parse_known_args()
+    args = update_args(args, unknown)
+    
+    # convert or not
     if not isinstance(args, dict):
         raise TypeError("Unsupported args type: {}".format(type(args)))
     
@@ -58,6 +73,8 @@ def update_args(args, new_args: Optional[Union[dict, list]] = None):
         _key = key.split("/")
         _final = args
         for k in _key[:-1]:
+            if k not in _final:
+                _final[k] = {}
             _final = _final[k]
         _final[_key[-1]] = safe_eval(value)
     return args
