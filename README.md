@@ -66,17 +66,13 @@ The argument parsing utils in this package provides three features:
     ```
 3. **Argument updating.** We can update the parsed args with command line arguments. If the specific argument is nested, then you can use slash `/` to separate each NameSpace, like `python main.py --TrainerArgs/momentum 0.8`. 
     ```python
-    from UtilsRL.argparse import parse_args, update_args
-    import argparse
+    from UtilsRL.argparse import parse_args
 
-    # get command line arguments
-    parser = arg_parse.ArgumentParser()
-    _, unknown = parser.parse_known_args()
-    
     # get arguments from file/config module
+    # this will automatically parse arguments from command line and update them to args
     args = parse_args("/path/to/file")
     
-    # update with command line arguments
+    # manually update with command line arguments
     args = update_args(args, unknown)
     ``` 
 
@@ -155,7 +151,7 @@ We provide a set of utils functions of selecting device and setting seed in `Uti
 
 A *setup* function is also available in `UtilsRL.misc.__init__`, which will setup the arguments with logger, device and seed which you provide. 
 ```python
-from UtilsRL.misc import setup
+from UtilsRL.exp import setup
 
 setup(args, logger=None, device="cuda:0", seed=None)  # seed will be initialized randomly
 setup(args, logger=None, device=None, seed="4234")  # a most free gpu will be selected as device
