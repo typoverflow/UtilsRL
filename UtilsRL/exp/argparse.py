@@ -6,7 +6,16 @@ from typing import Optional, OrderedDict, Union, Dict, Any
 from UtilsRL.misc.namespace import NameSpace, NameSpaceMeta
 from UtilsRL.misc.chore import safe_eval
 
-def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Union[NameSpace, Dict[str, Any]]:
+
+# argparse callbacks
+argparse_callbacks = {}
+def register_argparse_callback(key, func):
+    """
+    Register a callback function which is specific to UtilsRL use. 
+    """
+    argparse_callbacks[key] = func
+
+def parse_args(args: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpace, Dict[str, Any]]:
     """
     Parse args from json file, yaml, python file or plain old dict. 
     Command-line argumnets will be parsed as well, and will be used to overwrite
@@ -36,6 +45,8 @@ def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Un
             args = _parse_args_from_module(foo)
     elif isinstance(args, ModuleType):
         args = _parse_args_from_module(args)
+    elif args is None:
+        args = {}
         
     # update with command line arguments
     cmd_parser = argparse.ArgumentParser()
@@ -45,6 +56,18 @@ def parse_args(args: Optional[Union[str, dict, ModuleType]], convert=True) -> Un
     # convert or not
     if not isinstance(args, dict):
         raise TypeError("Unsupported args type: {}".format(type(args)))
+    
+    # check if there is a callback
+    for key in argparse_callbacks:
+        _args = args
+        _keys = key.split(".")
+        for k in _keys:
+            _args = _args.get(k, None)
+            if _args is None:
+                break
+        else:
+            ret = argparse_callbacks[key](_args)
+            args = update_args(args, ret)
     
     if convert: 
         return NameSpace("args", args, nested=convert)
@@ -70,7 +93,7 @@ def update_args(args, new_args: Optional[Union[dict, list]] = None):
         for _ in range(2):
             if key[0] == "-":
                 key = key[1:]
-        _key = key.split("/")
+        _key = key.split(".")
         _final = args
         for k in _key[:-1]:
             if k not in _final:

@@ -125,6 +125,9 @@ class NameSpaceMeta(type):
     
     def items(cls):
         return cls._data_.items()
+
+    def get(cls, __key, __default=None):
+        return cls._data_.get(__key, __default)
     
 
 class NameSpace(metaclass = NameSpaceMeta):

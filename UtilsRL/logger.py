@@ -31,6 +31,32 @@ class DummyLogger(BaseLogger):
     def log_str(self, msg, *args, **kwargs):
         print(msg)
 
+class ColoredLogger(BaseLogger):
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def log_str(
+        self, 
+        s: str, 
+        type: Optional[str] = None,
+        *args, **kwargs):
+        """Log string to terminal (if self.terminal is True) and txt file (if self.txt is True).
+        
+        Args: 
+            s: String to log. The  string can be formatted with `{}`, 
+                and use the *args to fill in the blanks.
+            type: Type of the log. When logging to terminal, this will determine the ansi color;
+        """
+        cmap = {
+            None: "\033[0m", 
+            "ERROR": "\033[1;31m", 
+            "LOG": "\033[1;34m", 
+            "SUCCESS": "\033[1;32m",
+            "WARNING": "\033[1;33m",
+            "RESET": "\033[0m"
+        }
+        time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        print("{}[{}]{}\t{}".format(cmap[type], time_fmt, cmap["RESET"], s))
 
 class TensorboardLogger(BaseLogger):
     """TensorBoard Logger with full data-type support.

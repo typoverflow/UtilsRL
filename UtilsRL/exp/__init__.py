@@ -1,9 +1,11 @@
+from UtilsRL.exp.argparse import parse_args, argparse_callbacks, register_argparse_callback
 from UtilsRL.exp.seed import *
 from UtilsRL.exp.device import *
+from UtilsRL.exp.snapshot import make_snapshot
+
 from UtilsRL.logger import BaseLogger, DummyLogger
 
 from typing import Any, Optional
-
 
 def setup(args, 
           logger: Optional[BaseLogger] = None, 
@@ -37,3 +39,6 @@ def setup(args,
     args["seed"] = seed
         
     return args
+
+    
+register_argparse_callback("UtilsRL.snapshot", make_snapshot)
