@@ -9,17 +9,21 @@ pip install UtilsRL
 After installation, you may still need to configure some other dependencies based on your platform, such as PyTorch.
 
 ## Features & Usage
-### Argument Parsing
+### 1. Experiment Management
+We provide a handful of functions for experiment management. All of them are placed under `UtilsRL.exp`, including: 
+#### 1.1 Argument Parsing
 The argument parsing utils in this package provides three features:
 1. **Supporting for multiple types of config files.** `parse_args` can parse json, yaml, or even a python config module which is imported ahead
    ```python
-   from UtilsRL.argparse import parse_args
+   from UtilsRL.exp import parse_args
    json_config = "/path/to/json"
    yaml_config = "/path/to/yaml"
    import config_module
 
    json_args = parse_args(json_config)
+   yaml_Args = parse_args(yaml_config)
    module_args = parse_args(config_module)
+   also_module_args = parse_args("/path/to/module")
    ```
 2. **Nested argument parsing.** We do this by introducing the `NameSpace` class. To be specific, if you pass `convert=True` to `parse_args`, then all of the dicts in the config file (including the argument dict itself) will be converted to a subclass of `NameSpace`. The contents wrapped in `NameSpace` can be accessed both in *dict* manner and in *attribute* manner, and they will be formatted for better illustration when printing. For example, if we define a config module as follows:
     ```python
@@ -64,9 +68,9 @@ The argument parsing utils in this package provides three features:
     >>>>>>>>>>>>>>>>>>>>>>
     0.001
     ```
-3. **Argument updating.** We can update the parsed args with command line arguments. If the specific argument is nested, then you can use slash `/` to separate each NameSpace, like `python main.py --TrainerArgs/momentum 0.8`. 
+3. **Argument updating.** When calling `UtilsRL.exp.parse_args`, the command-line argument is parsed and used to overwrite the arguments defined in config file. If the specific argument is nested, then you can use dot `.` to separate each NameSpace, like `python main.py --TrainerArgs.momentum 0.8`. 
     ```python
-    from UtilsRL.argparse import parse_args
+    from UtilsRL.exp import parse_args
 
     # get arguments from file/config module
     # this will automatically parse arguments from command line and update them to args
@@ -76,8 +80,23 @@ The argument parsing utils in this package provides three features:
     args = update_args(args, unknown)
     ``` 
 
+### 1.2 Device and Seed Management
+We provide a set of utils functions of selecting device and setting seed in `UtilsRL.exp.device` `UtilsRL.exp.seed`. Please take time and check these files. 
 
-### Monitor
+A *setup* function is available in top-level `UtilsRL.exp`, which will setup the arguments with logger, device and seed which you provide. 
+```python
+from UtilsRL.exp import setup
+
+setup(args, logger=None, device="cuda:0", seed=None)  # seed will be initialized randomly
+setup(args, logger=None, device=None, seed="4234")  # a most free gpu will be selected as device
+```
+
+### 1.3 Snapshot
+You can make a snapshot of the experiment code by passing `--UtilsRL.snapshot <name>` to the program. UtilsRL will commit all the changes to a new branch whose name is `<name>`, and then return to the original branch. 
+After creating the branch, its name will be added to `args`. You can find its name by `args.UtilsRL.snapshot_branch`, and git diff that branch later to checkout the changes from which you made. 
+
+
+## 2. Monitor
 Monitor listens at the main loop of the training process, and displays the process with tqdm meter. 
 ```python
 from UtilsRL.monitor import Monitor
@@ -124,7 +143,7 @@ class Trainer():
             # continue training
 ```
 
-### Logger
+## 3. Logger
 Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
 
 ```python
@@ -146,13 +165,3 @@ logger.log_scalas(main_tag="group_name", tag_scalar_dict={
 }, step=1)
 ```
 
-### Device and Seed Management
-We provide a set of utils functions of selecting device and setting seed in `UtilsRL.misc.device` `UtilsRL.misc.seed`. Please take time and check these files. 
-
-A *setup* function is also available in `UtilsRL.misc.__init__`, which will setup the arguments with logger, device and seed which you provide. 
-```python
-from UtilsRL.exp import setup
-
-setup(args, logger=None, device="cuda:0", seed=None)  # seed will be initialized randomly
-setup(args, logger=None, device=None, seed="4234")  # a most free gpu will be selected as device
-```
