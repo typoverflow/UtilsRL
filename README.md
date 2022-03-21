@@ -80,7 +80,7 @@ The argument parsing utils in this package provides three features:
     args = update_args(args, unknown)
     ``` 
 
-### 1.2 Device and Seed Management
+#### 1.2 Device and Seed Management
 We provide a set of utils functions of selecting device and setting seed in `UtilsRL.exp.device` `UtilsRL.exp.seed`. Please take time and check these files. 
 
 A *setup* function is available in top-level `UtilsRL.exp`, which will setup the arguments with logger, device and seed which you provide. 
@@ -91,12 +91,13 @@ setup(args, logger=None, device="cuda:0", seed=None)  # seed will be initialized
 setup(args, logger=None, device=None, seed="4234")  # a most free gpu will be selected as device
 ```
 
-### 1.3 Snapshot
+#### 1.3 Snapshot
 You can make a snapshot of the experiment code by passing `--UtilsRL.snapshot <name>` to the program. UtilsRL will commit all the changes to a new branch whose name is `<name>`, and then return to the original branch. 
 After creating the branch, its name will be added to `args`. You can find its name by `args.UtilsRL.snapshot_branch`, and git diff that branch later to checkout the changes from which you made. 
 
+---
 
-## 2. Monitor
+### 2. Monitor
 Monitor listens at the main loop of the training process, and displays the process with tqdm meter. 
 ```python
 from UtilsRL.monitor import Monitor
@@ -143,7 +144,7 @@ class Trainer():
             # continue training
 ```
 
-## 3. Logger
+### 3. Logger
 Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
 
 ```python
