@@ -95,7 +95,6 @@ setup(args, logger=None, device=None, seed="4234")  # a most free gpu will be se
 You can make a snapshot of the experiment code by passing `--UtilsRL.snapshot <name>` to the program. UtilsRL will commit all the changes to a new branch whose name is `<name>`, and then return to the original branch. 
 After creating the branch, its name will be added to `args`. You can find its name by `args.UtilsRL.snapshot_branch`, and git diff that branch later to checkout the changes from which you made. 
 
----
 
 ### 2. Monitor
 Monitor listens at the main loop of the training process, and displays the process with tqdm meter. 
