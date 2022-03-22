@@ -37,7 +37,7 @@ class NameSpaceMeta(type):
     """Meta class for NameSpace. """
     
     def __new__(cls, name, bases, dct):
-        x = super(NameSpaceMeta, cls).__new__(cls, name, bases, dct)
+        x = type.__new__(cls, name, bases, dct)
         x._data_ = {k:v for k, v in dct.items() if not _is_dunder(k) and not _is_sunder(k)}
         return x
     
@@ -120,7 +120,7 @@ class NameSpaceMeta(type):
     def __add__(cls, __obj):
         if not isinstance(__obj, NameSpaceMeta):
             raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(type(cls), type(__obj)))
-        ret = NameSpace("unnamed", {}, nested=True)
+        ret = cls.__bases__[0]("unnamed", {}, nested=True)
         for k, v in cls._data_.items():
             ret[k] = v
         for k, v in __obj._data_.items():
