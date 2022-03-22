@@ -10,12 +10,14 @@ def get_var_name(var):
         if len(names) > 0:
             return names[0]
         
+
 def _is_descriptor(obj):
     return (
         hasattr(obj, '__get__') or
         hasattr(obj, '__set__') or
         hasattr(obj, '__delete__')
     )
+    
     
 def _is_dunder(name):
     return (
@@ -25,6 +27,7 @@ def _is_dunder(name):
         name[-3] != '_'
     )
     
+    
 def _is_sunder(name):
     return (
         len(name) > 2 and
@@ -32,6 +35,7 @@ def _is_sunder(name):
         name[1:2] != '_' and
         name[-2:-1] != '_'
     )
+
 
 class NameSpaceMeta(type):
     """Meta class for NameSpace. """
@@ -49,7 +53,7 @@ class NameSpaceMeta(type):
             if _is_dunder(key) or _is_sunder(key):
                 raise KeyError("NameSpace does not support for dunder keys or sunder keys: {}".format(key))
             if nested and isinstance(value, dict):
-                classdict[key] = NameSpace.__call__(key, value, module=module, qualname=qualname, type=type)
+                classdict[key] = NameSpaceMeta.__call__(key, value, module=module, qualname=qualname, type=type)
             else:
                 classdict[key] = value
         new_namespace_cls = NameSpaceMeta.__new__(meta_cls, name, bases, classdict)
@@ -117,6 +121,16 @@ class NameSpaceMeta(type):
     def __hash__(cls):
         return hash(cls.__module__ + cls.__name__)
 
+    def __add__(cls, __obj):
+        if not isinstance(__obj, NameSpaceMeta):
+            raise TypeError("unsupported operand type(s) for +: '{}' and '{}'".format(type(cls), type(__obj)))
+        ret = NameSpace("unnamed", {}, nested=True)
+        for k, v in cls._data_.items():
+            ret[k] = v
+        for k, v in __obj._data_.items():
+            ret[k] = v
+        return ret
+
     def keys(cls):
         return cls._data_.keys()
     
@@ -135,3 +149,12 @@ class NameSpace(metaclass = NameSpaceMeta):
         designating the meta class to NameSpaceMeta for each scope. 
     """
     pass
+
+
+class A(NameSpace):
+    a = 2
+    
+class B(NameSpace):
+    b = 3
+    
+print(A+B)
