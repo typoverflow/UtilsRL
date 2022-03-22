@@ -10,14 +10,12 @@ def get_var_name(var):
         if len(names) > 0:
             return names[0]
         
-
 def _is_descriptor(obj):
     return (
         hasattr(obj, '__get__') or
         hasattr(obj, '__set__') or
         hasattr(obj, '__delete__')
     )
-    
     
 def _is_dunder(name):
     return (
@@ -27,7 +25,6 @@ def _is_dunder(name):
         name[-3] != '_'
     )
     
-    
 def _is_sunder(name):
     return (
         len(name) > 2 and
@@ -35,7 +32,6 @@ def _is_sunder(name):
         name[1:2] != '_' and
         name[-2:-1] != '_'
     )
-
 
 class NameSpaceMeta(type):
     """Meta class for NameSpace. """
@@ -149,12 +145,3 @@ class NameSpace(metaclass = NameSpaceMeta):
         designating the meta class to NameSpaceMeta for each scope. 
     """
     pass
-
-
-class A(NameSpace):
-    a = 2
-    
-class B(NameSpace):
-    b = 3
-    
-print(A+B)
