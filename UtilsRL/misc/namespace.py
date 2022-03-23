@@ -68,12 +68,16 @@ class NameSpaceMeta(type):
     def __repr__(cls) -> str:
         return "<{}: {}>".format(cls.__base__.__name__, cls.__name__)
     
-    def __str__(cls, indent=0) -> str:
-        substr = "\n".join([
-            "{}|{}:\t{}".format("\t"*(indent), k, NameSpaceMeta.__str__(v, indent+(len(k)+2+7)//8)) if isinstance(v, NameSpaceMeta) \
-                else "{}|{}: {}".format("\t"*(indent), k, v) for k, v in cls._data_.items() 
-        ]) 
-        return "{}\n".format(NameSpaceMeta.__repr__(cls)) + substr
+    def __str__(cls, indent=0, sep=[]) -> str:
+        # prefix = "".join(["|\t" if i in sep else "\t" for i in range(indent)])
+        if len(cls._data_) == 0:
+            substr = ""
+        else:
+            substr = "\n"+"\n".join([
+                "{}|{}:\t{}".format("".join(["|\t" if i in sep else "\t" for i in range(indent)]), k, NameSpaceMeta.__str__(v, indent+(len(k)+2+7)//8, sep+[indent])) if isinstance(v, NameSpaceMeta) \
+                    else "{}|{}: {}".format("".join(["|\t" if i in sep else "\t" for i in range(indent)]), k, v) for k, v in cls._data_.items() 
+            ])
+        return "{}".format(NameSpaceMeta.__repr__(cls)) + substr
     
     def __setattr__(cls, __name: str, __value: Any) -> None:
         if _is_dunder(__name) or _is_sunder(__name):
