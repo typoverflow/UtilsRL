@@ -104,6 +104,7 @@ class Monitor(object):
         self.has_callbacks = False
         self.callbacks = list()
         self.exit_callbacks = list()
+        self.end_callbacks = list()
         self.has_context = False
 
     def listen(self,
@@ -165,15 +166,24 @@ class Monitor(object):
                 "args": (args, kwargs)
             })
             atexit.register(callback, *args, **kwargs)
+        elif on == "100%" or on == "end":
+            if name in [ec["name"] for ec in self.end_callbacks]: 
+                return
+            self.end_callbacks.append({
+                "name": name, 
+                "on": "end", 
+                "callback": callback, 
+                "args": (args, kwargs)
+            })
         else:
             if name in [c["name"] for c in self.callbacks]:
                 return
             if isinstance(on, str):
-                try: 
-                    on = float(on[:-1]) / 100
-                    assert 0<=on<1
+                try:
+                    per = float(on[:-1]) / 100
+                    assert 0 <= per < 1
                 except Exception:
-                    raise MonitorError("Unrecognized condition: {}".format(on))
+                    raise MonitorError("Invalid percentage {}".format(on))
             else:
                 if not isinstance(on, int):
                     raise MonitorError("Unrecognized condition: {}".format(on)) 
@@ -243,8 +253,9 @@ class Monitor(object):
             if isinstance(c["on"], int):
                 if self.global_step == c["on"]:
                     c["callback"]( *c["args"][0], **c["args"][1], global_step=self.global_step)
-            elif isinstance(c["on"], float):
-                if self.global_step == int(c["on"] * self.total):
+            elif isinstance(c["on"], str): 
+                threshold = int(c["on"][:-1]) / 100 * self.total
+                if self.global_step >= threshold and self.global_step - 1 < threshold:
                     c["callback"](*c["args"][0], **c["args"][1], global_step=self.global_step)
 
     def __iter__(self):
@@ -271,4 +282,6 @@ class Monitor(object):
                 yield next(tqdm_iter)
                 self.global_step += 1
             except StopIteration:
+                for c in self.end_callbacks:
+                    c["callback"](*c["args"][0], **c["args"][1], global_step=self.global_step)
                 break
