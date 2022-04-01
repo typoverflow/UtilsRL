@@ -37,7 +37,7 @@ class NameSpaceMeta(type):
     """Meta class for NameSpace. """
     
     def __new__(cls, name, bases, dct):
-        x = type.__new__(cls, name, bases, dct)
+        x = type.__new__(cls, name, bases, {})
         x._data_ = {k:v for k, v in dct.items() if not _is_dunder(k) and not _is_sunder(k)}
         return x
     
@@ -93,7 +93,7 @@ class NameSpaceMeta(type):
     
     def __getattr__(cls, __name: str) -> Any:
         if __name in ["items", "keys", "values"]:
-            return type.__getattribute__(cls, __name)
+            return type.__getattribute__(cls._data_, __name)
         if _is_dunder(__name) or _is_sunder(__name):
             return type.__getattribute__(cls, __name)
         else:
