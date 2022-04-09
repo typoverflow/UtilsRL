@@ -98,7 +98,7 @@ class TensorboardLogger(BaseLogger):
     def log_str(
         self, 
         s: str, 
-        type: Optional[str] = None,
+        type: Optional[str] = "LOG",
         terminal: bool = True, 
         txt: bool = True, 
         level: int = 4, 
