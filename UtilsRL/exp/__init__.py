@@ -7,20 +7,22 @@ from UtilsRL.logger import BaseLogger, DummyLogger
 
 from typing import Any, Optional
 
+logger = None
+
 def setup(args, 
-          logger: Optional[BaseLogger] = None, 
+          _logger: Optional[BaseLogger] = None, 
           device: Optional[torch.device] = None, 
           seed: Optional[int] = None):
     """Setup the args for logger, device and seed. The sequence is:
         given parameter -> args -> None
     """
-    if not logger is None:
-        logger = logger
+    if not _logger is None:
+        _logger = _logger
     elif "logger" in args:
-        logger = args["logger"]
+        _logger = args["logger"]
     else:
-        logger = DummyLogger()
-    args["logger"] = logger
+        _logger = DummyLogger()
+    args["logger"] = _logger
         
     if not device is None:
         device = select_device(device)
@@ -37,6 +39,9 @@ def setup(args,
     else:
         seed = set_seed(None)
     args["seed"] = seed
+    
+    global logger
+    logger = _logger
         
     return args
 
