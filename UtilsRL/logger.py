@@ -47,6 +47,8 @@ class ColoredLogger(BaseLogger):
                 and use the *args to fill in the blanks.
             type: Type of the log. When logging to terminal, this will determine the ansi color;
         """
+        if type:
+            type = type.upper()
         cmap = {
             None: "\033[0m", 
             "ERROR": "\033[1;31m", 
