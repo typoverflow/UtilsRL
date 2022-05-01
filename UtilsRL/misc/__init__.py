@@ -1,2 +1,3 @@
 from UtilsRL.misc.namespace import *
-from UtilsRL.misc.chore import *
+from .chore import *
+from .decorator import *
