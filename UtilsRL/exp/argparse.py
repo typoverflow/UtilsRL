@@ -7,6 +7,7 @@ from numpy import isin, nested_iters
     
 from UtilsRL.misc.namespace import NameSpace, NameSpaceMeta
 from UtilsRL.misc.chore import safe_eval
+from UtilsRL.logger import ColoredLogger
 
 
 # argparse callbacks
@@ -82,17 +83,21 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
     file_args = NameSpace("args", file_args, nested=True) if convert else file_args
         
     # update with cmd args
-    def traverse_add(old, new):
+    clogger = ColoredLogger()
+    def traverse_add(old, new, current_key=""):
         for new_key, new_value in new.items():
             if new_key not in old:
+                clogger.log_str(f"parse_args: key {current_key + new_key} is not in the config file, setting it to {new_value}", type="WARNING")
                 old[new_key] = new_value
             elif type(old[new_key]) != type(new_value):
+                clogger.log_str(f"parse_args: overwriting key {current_key + new_key} with {new_value}", type="WARNING")
                 old[new_key] = new_value
             else:
                 if (convert and isinstance(new_value, NameSpaceMeta)) \
                     or (not convert and isinstance(new_value, dict)):
-                    traverse_add(old[new_key], new_value)
+                    traverse_add(old[new_key], new_value, current_key=current_key+new_key+".")
                 else:
+                    clogger.log_str(f"parse_args: overwriting key {current_key + new_key} with {new_value}", type="WARNING")
                     old[new_key] = new_value
                 
     traverse_add(file_args, cmd_args)
