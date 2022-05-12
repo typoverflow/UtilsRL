@@ -1,5 +1,6 @@
 from typing import Union, Sequence, Any, Optional, Dict
 from abc import ABC, abstractmethod
+from aiohttp import RequestInfo
 
 import torch
 import torch.nn as nn
@@ -41,28 +42,21 @@ class BaseNormalizer(ABC):
     @abstractmethod
     def update(self, x: torch.Tensor):
         raise NotImplementedError
-
-    @abstractmethod
-    def state_dict(self): 
-        raise NotImplementedError
     
-    @abstractmethod
-    def load_state_dict(self, state_dict: Dict):
-        raise NotImplementedError
-    
-    def __call__(self, x: torch.Tensor, inverse: bool = False):
-        return self.transform(x, inverse)        
+    def forward(self, *args, **kwargs):
+        return self.transform(*args, **kwargs)
+      
 
-class RunningNormalizer(BaseNormalizer):
-    def __init__(self, eps=1e-6, device: Union[str, int, torch.device]="cpu", **kwargs):
-        super().__init__()
-        self._initialized, self.mean, self.var = False, None, None
+class RunningNormalizer(BaseNormalizer, nn.Module):
+    def __init__(self, eps=1e-6, **kwargs):
+        BaseNormalizer.__init__(self)
+        nn.Module.__init__(self)
+        self._initialized = nn.Parameter(torch.tensor(False), requires_grad=False)
         self.eps = eps
-        self.device = device
         if "shape" in kwargs:
             self._initialize(kwargs["shape"])
         
-        self.count = 0
+        self.count = nn.Parameter(torch.tensor(0), requires_grad=False)
         
     def _initialize(self, shape: Union[Sequence[int], int]):
         if shape is None:
@@ -70,12 +64,12 @@ class RunningNormalizer(BaseNormalizer):
         if isinstance(shape, int):
             shape = [shape]
         
-        self.mean = torch.zeros(shape, dtype=torch.float32, device=self.device, requires_grad=False)
-        self.var = torch.ones(shape, dtype=torch.float32, device=self.device, requires_grad=False)
-        self._initialized = True
+        self.register_parameter("mean", nn.Parameter(torch.zeros(shape, dtype=torch.float32), requires_grad=False))
+        self.register_parameter("var", nn.Parameter(torch.ones(shape, dtype=torch.float32), requires_grad=False))
+        self._initialized.data = torch.tensor(True)
         
     def transform(self, x: torch.Tensor, inverse: bool = False):
-        if not self._initilized:
+        if not self._initialized:
             self._initialize(x.shape[-1])
         if inverse:
             return x * torch.sqrt(self.var+self.eps) + self.mean
@@ -83,43 +77,34 @@ class RunningNormalizer(BaseNormalizer):
 
     def update(self, data: torch.Tensor):
         num_shape = len(data.shape)
-        batch_mean = torch.mean(data, dim=[_ for _ in range(num_shape-1)]).detach().clone().to(self.device)
-        batch_var = torch.var(data, dim=[_ for _ in range(num_shape-1)]).detach().clone().to(self.device)
+        batch_mean = torch.mean(data, dim=[_ for _ in range(num_shape-1)]).detach().clone()
+        batch_var = torch.var(data, dim=[_ for _ in range(num_shape-1)]).detach().clone()
         batch_count = np.prod(data.shape[:-1])
+        device = batch_mean.device
 
-        delta = batch_mean - self.mean
-        tot_count = self.count + batch_count + 1e-4
-        new_mean = self.mean + delta * batch_count / tot_count
-        m_a = self.var * self.count
+        old_mean = self.mean.data.to(device)
+        old_var = self.var.data.to(device)
+        count = self.count.data.to(device)
+        
+        delta = batch_mean - old_mean
+        tot_count = count + batch_count
+        new_mean = old_mean + delta * batch_count / tot_count
+        m_a = old_var * count
         m_b = batch_var * batch_count
-        m_2 = m_a + m_b + np.square(delta) * self.count * batch_count / (self.count + batch_count)
+        m_2 = m_a + m_b + np.square(delta) * count * batch_count / (count + batch_count)
         new_var = m_2 / (tot_count)
         
-        self.mean = new_mean
-        self.var = new_var
-        self.count += batch_count
-    
-    def state_dict(self):
-        return {
-            "mean": self.mean, 
-            "var": self.var, 
-            "count": self.count, 
-            "_initialized": self._initialized
-        }
-    
-    def load_state_dict(self, state_dict: Dict):
-        self.mean = state_dict["mean"]
-        self.var = state_dict["var"]
-        self.count = state_dict["count"]
-        self._initialized = state_dict["_initialized"]
+        self.mean.data = new_mean
+        self.var.data = new_var
+        self.count.data = tot_count
         
         
-class StaticNormalizer(BaseNormalizer):
-    def __init__(self, eps=1e-6, device: Union[str, int, torch.device]="cpu", **kwargs):
-        super().__init__()
-        self._initialized, self.mean, self.std = False, None, None
+class StaticNormalizer(BaseNormalizer, nn.Module):
+    def __init__(self, eps=1e-6, **kwargs):
+        BaseNormalizer.__init__(self)
+        nn.Module.__init__(self)
+        self._initialized = nn.Parameter(torch.tensor(False), requires_grad=False)
         self.eps = eps
-        self.device = device
         if "mean" in kwargs:
             if "var" in kwargs:
                 self._initialize(mean=kwargs["mean"], std=None, var=kwargs["var"])
@@ -128,20 +113,32 @@ class StaticNormalizer(BaseNormalizer):
             else:
                 raise KeyError("mean and var must be specified at the same time.")
         
-        self.count = 0
-        
     def _initialize(self,
                     mean: Optional[torch.Tensor], 
                     std: Optional[torch.Tensor], 
                     var: Optional[torch.Tensor]
                     ):
-        self.mean = mean.detach().clone().to(self.device)
+        if mean is None:
+            raise ValueError("Mean must be provided when initializing StaticNormalizer!")
+        if std is None and var is None:
+            raise ValueError("Either std or var must be provided when initializing StaticNormalizer!")
+        
+        if hasattr(self, "mean"):
+            self.mean.data = mean.detach().clone()
+        else:
+            self.register_parameter("mean", nn.Parameter(mean.detach().clone(), requires_grad=False))
         if std is not None:
-            self.std = std.detach().clone().to(self.device)
+            if hasattr(self, "std"):
+                self.std.data = std.detach().clone()
+            else:
+                self.register_parameter("std", nn.Parameter(std.detach().clone(), requires_grad=False))
         elif var is not None:
-            self.std = torch.sqrt(var + self.eps).detach().clone().to(self.device)
+            if hasattr(self, "std"):
+                self.std.data = torch.sqrt(var + self.eps).detach().clone()
+            else:
+                self.register_parameter("std", nn.Parameter(torch.sqrt(var + self.eps).detach().clone(), requires_grad=False))
             
-        self._initialized = True
+        self._initialized.data = torch.tensor(True).to(mean.device)
         
     def transform(self, x: torch.Tensor, inverse: bool=False):
         if not self._initialized:
@@ -154,43 +151,35 @@ class StaticNormalizer(BaseNormalizer):
         num_shape = len(data.shape)
         batch_mean = torch.mean(data, dim=[_ for _ in range(num_shape-1)])
         batch_std = torch.std(data, dim=[_ for _ in range(num_shape-1)])
-        batch_count = np.prod(data.shape[:-1])
         
         self._initialize(mean=batch_mean, std=batch_std, var=None)
-        self.count += batch_count
+           
         
-    def state_dict(self):
-        return {
-            "mean": self.mean, 
-            "std": self.std, 
-            "count": self.count,
-            "_initialized": self._initialized
-        }
-        
-    def load_state_dict(self, state_dict: Dict):
-        self.mean = state_dict["mean"]
-        self.std = state_dict["std"]
-        self.count = state_dict["count"]
-        self._initialized = state_dict["_initialized"]
-        
-class MinMaxNormalizer(BaseNormalizer):
-    def __init__(self, eps=1e-6, device: Union[str, int, torch.device]="cpu", **kwargs):
-        super().__init__()
-        self._initialized = False
+class MinMaxNormalizer(BaseNormalizer, nn.Module):
+    def __init__(self, eps=1e-6, **kwargs):
+        BaseNormalizer.__init__(self)
+        nn.Module.__init__(self)
+        self._initialized = nn.Parameter(torch.tensor(False).to(device), requires_grad=False)
         self.eps = eps
-        self.device = device
-        if "min" in kwargs and "max" in kwargs:
-            self._initialize(min=kwargs["min"], max=kwargs["max"])
-        
-        self.count = 0
+        if "min" in kwargs or "max" in kwargs:
+            self._initialize(min=kwargs.get("min", None), max=kwargs.get("max", None))
         
     def _initialize(self, 
-                    min: torch.Tensor, 
-                    max: torch.Tensor
+                    min: Optional[torch.Tensor], 
+                    max: Optional[torch.Tensor]
                     ):
-        self.min = min.detach().clone().to(self.device)
-        self.max = max.detach().clone().to(self.device)
-        self._initialized = True
+        if min is None or max is None:
+            raise ValueError("Both min and max must be provided when initializing MinMaxNormalizer!")
+        if hasattr(self, "min"):
+            self.min.data = min.detach().clone()
+        else:
+            self.register_parameter("min", min.detach().clone())
+        if hasattr(self, "max"):
+            self.max.data = max.detach().clone()
+        else:
+            self.register_parameter("max", max.detach().clone())
+        
+        self._initialized.data = torch.tensor(True).to(min.device)
         
     def transform(self, x: torch.Tensor, inverse: bool=False):
         if not self._initialized:
@@ -203,22 +192,6 @@ class MinMaxNormalizer(BaseNormalizer):
         num_shape = len(data.shape)
         batch_min = torch.min(data, dim=[_ for _ in range(num_shape-1)])
         batch_max = torch.max(data, dim=[_ for _ in range(num_shape-1)])
-        batch_count = np.prod(data.shape[:-1])
         
         self._initialize(min=batch_min, max=batch_max)
-        self.count += batch_count
         
-    def state_dict(self):
-        return {
-            "min": self.min, 
-            "max": self.max, 
-            "count": self.count, 
-            "_initialized": self._initialized
-        }
-    
-    def load_state_dict(self, state_dict: Dict):
-        self.min = state_dict["min"]
-        self.max = state_dict["max"]
-        self.count = state_dict["count"]
-        self._initialized = state_dict["_initialized"]
-         
