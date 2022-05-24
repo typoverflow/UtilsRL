@@ -3,11 +3,9 @@ from UtilsRL.exp.seed import *
 from UtilsRL.exp.device import *
 from UtilsRL.exp.snapshot import make_snapshot
 
-from UtilsRL.logger import BaseLogger, DummyLogger
+from UtilsRL.logger import BaseLogger, DummyLogger, logger
 
 from typing import Any, Optional
-
-logger = None
 
 def setup(args, 
           _logger: Optional[BaseLogger] = None, 

@@ -279,7 +279,4 @@ class TensorboardLogger(BaseLogger):
         self.tb_writer.close()
 
     
-    
-
-        
-
+logger = ColoredLogger() 
