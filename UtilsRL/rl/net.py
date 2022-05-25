@@ -30,7 +30,7 @@ class MLP(nn.Module):
         self, 
         input_dim: int, 
         output_dim: int = 0, 
-        hidden_dims: Sequence[int] = (), 
+        hidden_dims: Sequence[int] = [], 
         norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
         activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
         device: Optional[Union[str, int, torch.device]] = "cpu", 
