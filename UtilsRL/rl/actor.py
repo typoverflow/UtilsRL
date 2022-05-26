@@ -1,4 +1,3 @@
-from tkinter import HIDDEN
 from typing import Dict, Optional, Any, Sequence, Union
 
 import torch
@@ -34,6 +33,7 @@ class DeterministicActor(BaseActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]]=[],
+                 linear_layer: nn.Module=nn.Linear
                  ):
         super().__init__()
         self.actor_type = "DeterministicActor"
@@ -49,7 +49,8 @@ class DeterministicActor(BaseActor):
             input_dim = input_dim, 
             output_dim = output_dim,
             hidden_dims = hidden_dims, 
-            device = device
+            device = device, 
+            linear_layer=linear_layer
         )
     
     def forward(self, input: torch.Tensor):
@@ -69,8 +70,9 @@ class SquashedDeterministicActor(DeterministicActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]]=[],
+                 linear_layer: nn.Module=nn.Linear, 
                  ):
-        super().__init__(backend, input_dim, output_dim, device, hidden_dims)
+        super().__init__(backend, input_dim, output_dim, device, hidden_dims, linear_layer)
         self.actor_type = "SqushedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
@@ -85,8 +87,9 @@ class ClippedDeterministicActor(DeterministicActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]]=[], 
+                 linear_layer: nn.Module=nn.Linear
                  ):
-        super().__init__(backend, input_dim, output_dim, device, hidden_dims)
+        super().__init__(backend, input_dim, output_dim, device, hidden_dims, linear_layer)
         self.actor_type = "ClippedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
@@ -104,6 +107,7 @@ class GaussianActor(BaseActor):
                  conditioned_logstd: bool=True, 
                  fix_logstd: Optional[float]=None, 
                  hidden_dims: Union[int, Sequence[int]]=[],
+                 linear_layer: nn.Module=nn.Linear, 
                  logstd_min: int = -20, 
                  logstd_max: int = 2,
                  ):
@@ -133,7 +137,8 @@ class GaussianActor(BaseActor):
             input_dim = input_dim,
             output_dim = output_dim, 
             hidden_dims = hidden_dims, 
-            device = device
+            device = device, 
+            linear_layer=linear_layer
         )
         
         self.logstd_min = nn.Parameter(torch.tensor(logstd_min, dtype=torch.float), requires_grad=False).to(device)
@@ -180,10 +185,11 @@ class SquashedGaussianActor(GaussianActor):
                  conditioned_logstd: bool = True, 
                  fix_logstd: Optional[float] = None, 
                  hidden_dims: Union[int, Sequence[int]] = [],
+                 linear_layer: nn.Module=nn.Linear,
                  logstd_min: int = -20, 
                  logstd_max: int = 2, 
                  ):
-        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, logstd_min, logstd_max)
+        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, linear_layer, logstd_min, logstd_max)
         self.actor_type = "SquashedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
@@ -217,10 +223,11 @@ class ClippedGaussianActor(GaussianActor):
                  conditioned_logstd: bool = True, 
                  fix_logstd: Optional[float] = None, 
                  hidden_dims: Union[int, Sequence[int]] = [],
+                 linear_layer: nn.Module=nn.Linear,
                  logstd_min: int = -20, 
                  logstd_max: int = 2, 
                  ):
-        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, logstd_min, logstd_max)
+        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, linear_layer, logstd_min, logstd_max)
         self.actor_type = "ClippedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
@@ -234,6 +241,7 @@ class CategoricalActor(BaseActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]] = [],
+                 linear_layer: nn.Module=nn.Linear,
                  ):
         super().__init__()
         
@@ -249,7 +257,8 @@ class CategoricalActor(BaseActor):
             input_dim = input_dim, 
             output_dim = output_dim, 
             hidden_dims = hidden_dims, 
-            device = device
+            device = device, 
+            linear_layer=linear_layer
         )
         
     def forward(self, input: torch.Tensor):

@@ -23,6 +23,11 @@ class ReplayPool(ABC):
     def field_names(self):
         return list(self.fields.keys())
     
+    def clear(self):
+        self._pointer = 0
+        self._size = 0
+        self._samples_since_save = 0
+    
     def _advance(self, count=1):
         self._pointer = (self._pointer + count) % self._max_size
         self._size = min(self._size + count, self._max_size)
