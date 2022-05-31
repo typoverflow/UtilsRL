@@ -33,7 +33,7 @@ body:
       placeholder: |
         e.g. Ubuntu 22.04 / macOS Monterey version 12.3
     validations:
-    required: true
+      required: true
 
   - type: textarea
     id: expected_behavior

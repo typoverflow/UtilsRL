@@ -1,4 +1,4 @@
-diname: Question
+name: Question
 description: Having some questions about the behavior or functions of UtilsRL
 title: "[Question]: "
 labels: ["question"]
@@ -33,7 +33,7 @@ body:
       placeholder: |
         e.g. Ubuntu 22.04 / macOS Monterey version 12.3
     validations:
-    required: true
+      required: true
 
   - type: textarea
     id: question

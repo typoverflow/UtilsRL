@@ -24,7 +24,7 @@ body:
       required: true
   
   - type: textarea
-    id: possible solutions
+    id: possible_solutions
     attributes: 
       label: |
         Possible solutions
