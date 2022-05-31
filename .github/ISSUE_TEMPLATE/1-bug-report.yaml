@@ -56,7 +56,7 @@ body:
     attributes:
       label: |
         A minimal piece of code to reproduce the problem: 
-    render: python
+      render: python
   
   - type: textarea
     id: extra_info
