@@ -38,5 +38,5 @@ class SingleCritic(nn.Module):
     def forward(self, state: torch.Tensor, action: Optional[torch.Tensor]=None):
         if action is not None:
             state = torch.cat([state, action], dim=-1)
-        return self.output_layer(state)
+        return self.output_layer(self.backend(state))
         

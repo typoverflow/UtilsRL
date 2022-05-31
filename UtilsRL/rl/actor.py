@@ -129,7 +129,7 @@ class GaussianActor(BaseActor):
             self.logstd = nn.Parameter(self.logstd, requires_grad=True).to(device)
         else:
             self._logstd_is_layer = True
-            self.output_dim *= 2
+            self.output_dim = output_dim = 2*output_dim
 
         if isinstance(hidden_dims, int):
             hidden_dims = [hidden_dims]
@@ -141,8 +141,8 @@ class GaussianActor(BaseActor):
             linear_layer=linear_layer
         )
         
-        self.logstd_min = nn.Parameter(torch.tensor(logstd_min, dtype=torch.float), requires_grad=False).to(device)
-        self.logstd_max = nn.Parameter(torch.tensor(logstd_max, dtype=torch.float), requires_grad=False).to(device)
+        self.logstd_min = nn.Parameter(torch.tensor(logstd_min, dtype=torch.float), requires_grad=False)
+        self.logstd_max = nn.Parameter(torch.tensor(logstd_max, dtype=torch.float), requires_grad=False)
         
     def forward(self, input: torch.Tensor):
         out = self.output_layer(self.backend(input))

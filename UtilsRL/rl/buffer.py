@@ -83,7 +83,7 @@ class ReplayPool(ABC):
 
     
 class TransitionReplayPool(ReplayPool):
-    def __init__(self, observation_space, action_space, max_size, extra_fields, *args, **kwargs):
+    def __init__(self, observation_space, action_space, max_size, extra_fields={}, *args, **kwargs):
         self._observation_space = observation_space
         self._action_space = action_space
         
@@ -138,13 +138,13 @@ class TransitionReplayPool(ReplayPool):
             return np.random.randint(0, self._size, batch_size)
         idx = random_indices(batch_size)
         if fields is None:
-            fields = list(self.field_names)
+            fields = self.field_names
         return {
             field_name: self.fields[field_name][idx] for field_name in fields
         }
 
 class TrajectoryReplayPool(ReplayPool):
-    def __init__(self, observation_space, action_space, max_size, max_traj_len, extra_fields, *args, **kwargs):
+    def __init__(self, observation_space, action_space, max_size, max_traj_len, extra_fields={}, *args, **kwargs):
         self._observation_space = observation_space
         self._action_space = action_space
         self.max_traj_len = max_traj_len

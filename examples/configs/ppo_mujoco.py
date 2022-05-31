@@ -29,8 +29,11 @@
 
 actor_lr = 3e-4
 critic_lr = 1e-3
-policy_hidden_dims = [64, 64]
+actor_hidden_dims = [64, 64]
 critic_hidden_dims = [64, 64]
+
+actor_output_hidden_dims = [64, ]
+critic_output_hidden_dims = [64, ]
 
 reward_scale = 5
 
@@ -47,3 +50,6 @@ max_traj_length = 1000
 
 eval_interval = 10
 eval_num_traj = 10
+
+log_path = "./tests/log"
+name = "debug"
