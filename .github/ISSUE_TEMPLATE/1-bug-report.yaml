@@ -1,0 +1,74 @@
+name: Bug Report
+description: Describe the bugs
+title: "[Bug]: "
+labels: ["bug"]
+
+body: 
+  - type: markdown
+    attributes: 
+      value: |
+        Please elaborate on the problems you met when using UtilsRL, and provide information as much as you can.
+  
+  - type: checkboxes
+    id: prerequisites
+    attributes: 
+      label: Prerequisites
+      options: 
+        - label: I have tried updating UtilsRL but nothing works.
+          required: true
+        - label: I have checked both open and closed issues but found nothing that helps. 
+          required: true
+  
+  - type: input
+    id: UtilsRL_version
+    attributes: 
+      label: UtilsRL version
+    validations:
+      required: true
+
+  - type: input
+    id: System_version
+    attributes: 
+      label: System info
+      placeholder: |
+        e.g. Ubuntu 22.04 / macOS Monterey version 12.3
+    validations:
+    required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes: 
+      label: |
+        What I am expecting:
+    validations: 
+      required: true
+  
+  - type: textarea
+    id: what_happend
+    attributes: 
+      label: |
+        What actually happened:
+    validations:
+      required: true
+
+  - type: textarea
+    id: code_example
+    attributes:
+      label: |
+        A minimal piece of code to reproduce the problem: 
+    render: python
+  
+  - type: textarea
+    id: extra_info
+    attributes: 
+      label: |
+        Any additional messages which might help:
+      
+  - type: dropdown
+    id: urgency
+    attributes: 
+      label: Urgency
+      options: 
+        - Very urgent, affecting other modules of UtilsRL and should be fixed immediately.
+        - Urgent, causing a specific module to be unusable.
+        - Not a big problem.

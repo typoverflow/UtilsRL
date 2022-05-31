@@ -1,0 +1,46 @@
+name: Feature Request
+description: Describe the features you hope to be included in future versions
+title: "[Feature]: "
+labels: ["enhancement"]
+
+body: 
+  - type: checkboxes
+    id: prerequisites
+    attributes: 
+      label: Prerequisites
+      options: 
+        - label: I have tried updating UtilsRL to the newest version.
+          required: true
+        - label: I have checked both open and closed issues but found nothing related to my request. 
+          required: true
+
+  - type: textarea
+    id: expected_behavior
+    attributes: 
+      label: |
+        What I am expecting:
+      placeholder: Please describe your feature request and (if any) describe why the current version cannot satisfy you need.
+    validations: 
+      required: true
+  
+  - type: textarea
+    id: possible solutions
+    attributes: 
+      label: |
+        Possible solutions
+      placeholder: If possible, please breifly describe how we should refactor/improve, and list the attempts you have tried so far.  
+  
+  - type: textarea
+    id: extra_info
+    attributes: 
+      label: |
+        Any additional messages which might help:
+      
+  - type: dropdown
+    id: urgency
+    attributes: 
+      label: Urgency
+      options: 
+        - Very urgent, this feature is relevant and should be implemented immediately.
+        - Urgent, will bring significant improvement and should be considered in next main version.
+        - Not a big problem, minor modifications on docs / annotations / codes.

@@ -1,0 +1,53 @@
+diname: Question
+description: Having some questions about the behavior or functions of UtilsRL
+title: "[Question]: "
+labels: ["question"]
+
+body: 
+  - type: markdown
+    attributes: 
+      value: |
+        Please elaborate on the problems you met when using UtilsRL, and provide information as much as you can.
+  
+  - type: checkboxes
+    id: prerequisites
+    attributes: 
+      label: Prerequisites
+      options: 
+        - label: I have read the latest version of source code.
+          required: true
+        - label: I have checked both open and closed issues but found nothing that helps. 
+          required: true
+  
+  - type: input
+    id: UtilsRL_version
+    attributes: 
+      label: UtilsRL version
+    validations:
+      required: true
+
+  - type: input
+    id: System_version
+    attributes: 
+      label: System info
+      placeholder: |
+        e.g. Ubuntu 22.04 / macOS Monterey version 12.3
+    validations:
+    required: true
+
+  - type: textarea
+    id: question
+    attributes: 
+      label: |
+        Your question: 
+    validations: 
+      required: true
+      
+  - type: dropdown
+    id: urgency
+    attributes: 
+      label: Urgency
+      options: 
+        - Very urgent, possible related to a bug.
+        - Urgent, causing problems to my code or programming.
+        - Not a big problem.
