@@ -14,7 +14,7 @@ body:
         - label: I have checked both open and closed issues but found nothing related to my request. 
           required: true
 
-    - type: input
+  - type: input
     id: UtilsRL_version
     attributes: 
       label: UtilsRL verison when proposing this request
@@ -24,8 +24,7 @@ body:
   - type: textarea
     id: expected_behavior
     attributes: 
-      label: |
-        What I am expecting
+      label: What I am expecting
       placeholder: Please describe your feature request and (if any) describe why the current version cannot satisfy you need.
     validations: 
       required: true
@@ -33,15 +32,13 @@ body:
   - type: textarea
     id: possible_solutions
     attributes: 
-      label: |
-        Possible solutions
+      label: Possible solutions
       placeholder: If possible, please breifly describe how we should refactor/improve, and list the attempts you have tried so far.  
   
   - type: textarea
     id: extra_info
     attributes: 
-      label: |
-        Any additional messages which might help:
+      label: Any additional messages which might help
       
   - type: dropdown
     id: urgency

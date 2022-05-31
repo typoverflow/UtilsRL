@@ -38,31 +38,27 @@ body:
   - type: textarea
     id: expected_behavior
     attributes: 
-      label: |
-        What I am expecting
+      label: What I am expecting
     validations: 
       required: true
   
   - type: textarea
     id: what_happend
     attributes: 
-      label: |
-        What actually happened
+      label: What actually happened
     validations:
       required: true
 
   - type: textarea
     id: code_example
     attributes:
-      label: |
-        A minimal piece of code to reproduce the problem
+      label: A minimal piece of code to reproduce the problem
       render: python
   
   - type: textarea
     id: extra_info
     attributes: 
-      label: |
-        Any additional messages which might help
+      label: Any additional messages which might help
       
   - type: dropdown
     id: urgency
