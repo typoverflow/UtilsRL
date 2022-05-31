@@ -39,7 +39,7 @@ body:
     id: expected_behavior
     attributes: 
       label: |
-        What I am expecting:
+        What I am expecting
     validations: 
       required: true
   
@@ -47,7 +47,7 @@ body:
     id: what_happend
     attributes: 
       label: |
-        What actually happened:
+        What actually happened
     validations:
       required: true
 
@@ -55,14 +55,14 @@ body:
     id: code_example
     attributes:
       label: |
-        A minimal piece of code to reproduce the problem: 
+        A minimal piece of code to reproduce the problem
       render: python
   
   - type: textarea
     id: extra_info
     attributes: 
       label: |
-        Any additional messages which might help:
+        Any additional messages which might help
       
   - type: dropdown
     id: urgency

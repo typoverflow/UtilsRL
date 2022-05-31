@@ -39,7 +39,7 @@ body:
     id: question
     attributes: 
       label: |
-        Your question: 
+        Your question
     validations: 
       required: true
       
