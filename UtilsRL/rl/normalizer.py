@@ -1,6 +1,5 @@
 from typing import Union, Sequence, Any, Optional, Dict
 from abc import ABC, abstractmethod
-from aiohttp import RequestInfo
 
 import torch
 import torch.nn as nn

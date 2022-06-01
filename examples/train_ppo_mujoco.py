@@ -57,13 +57,13 @@ obs_normalizer = RunningNormalizer(shape=args.obs_shape)
 def update(data_batch):
     obs_batch, action_batch, logprob_batch, advantage_batch, return_batch = \
         itemgetter("obs", "action", "logprob", "advantage", "return")(data_batch)
-    obs_batch = torch.from_numpy(obs_batch).to(args.device)
-    action_batch = torch.from_numpy(action_batch).to(args.device)
-    logprob_batch = torch.from_numpy(logprob_batch).to(args.device)
-    advantage_batch = torch.from_numpy(advantage_batch).to(args.device)
-    return_batch = torch.from_numpy(return_batch).to(args.device)
+    obs_batch = torch.from_numpy(obs_batch).float().to(args.device)
+    action_batch = torch.from_numpy(action_batch).float().to(args.device)
+    logprob_batch = torch.from_numpy(logprob_batch).float().to(args.device)
+    advantage_batch = torch.from_numpy(advantage_batch).float().to(args.device)
+    return_batch = torch.from_numpy(return_batch).float().to(args.device)
         
-    actor_loss = critic_loss = entropy_loss = tot_approx_kl = clip_fraction = 0
+    actor_loss_value = critic_loss_value = entropy_loss_value = tot_approx_kl = clip_fraction = 0
     for actor_step in range(args.actor_repeat_step):
         new_logprob, new_entropy = actor.evaluate(obs_batch, action_batch)
         ratio = torch.exp(new_logprob - logprob_batch)
@@ -80,8 +80,8 @@ def update(data_batch):
         (actor_loss + args.entropy_coeff*entropy_loss).backward()
         actor_optim.step()
         
-        actor_loss += actor_loss.detach().cpu().item()
-        entropy_loss += entropy_loss.detach().cpu().item()
+        actor_loss_value += actor_loss.detach().cpu().item()
+        entropy_loss_value += entropy_loss.detach().cpu().item()
         tot_approx_kl += approx_kl
         clip_fraction += (abs(ratio-1.0) > args.clip_range).float().mean().detach().cpu().item()
         
@@ -92,7 +92,7 @@ def update(data_batch):
         critic_loss.backward()
         critic_optim.step()
         
-        critic_loss += critic_loss.detach().cpu().item()
+        critic_loss_value += critic_loss.detach().cpu().item()
         
     ret_dict = {
         "loss/critic": critic_loss/critic_step, 
@@ -100,8 +100,8 @@ def update(data_batch):
     }
     if actor_step > 0:
         ret_dict.update({
-            "loss/actor": actor_loss/actor_step,
-            "loss/entropy": entropy_loss/actor_step,
+            "loss/actor": actor_loss_value/actor_step,
+            "loss/entropy": entropy_loss_value/actor_step,
             "misc/approx_kl": tot_approx_kl/actor_step,
             "misc/clip_fraction": clip_fraction/actor_step
         })
@@ -122,7 +122,7 @@ def get_action(obs, deterministic=False):
     if len(obs.shape) == 1:
         obs = torch.unsqueeze(obs, 0)
     action, logprob, _ = actor.sample(obs, deterministic=deterministic, return_mean_logstd=False)
-    return torch.squeeze(action).cpu().numpy(), torch.squeeze(logprob).cpu().numpy()
+    return torch.squeeze(action).cpu().numpy(), torch.squeeze(logprob).cpu().numpy() if logprob else logprob
 
 
 # 5. Define the training logics
@@ -199,7 +199,7 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
         for traj_id in range(args.eval_num_traj):
             traj_return = traj_length = 0
             state, done = env.reset(), False
-            for step in range(args.max_trajectory_length):
+            for step in range(args.max_traj_length):
                 action, _= get_action(state, deterministic=True)
                 next_state, reward, done, _ = env.step(action)
                 traj_return += reward

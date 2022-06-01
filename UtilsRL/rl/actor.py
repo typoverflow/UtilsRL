@@ -93,7 +93,7 @@ class ClippedDeterministicActor(DeterministicActor):
         self.actor_type = "ClippedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
-        action = super().forward(x)
+        action = super().forward(input)
         return torch.clip(action, min=-1, max=1)
     
     
