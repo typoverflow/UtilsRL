@@ -54,6 +54,15 @@ class ReplayPool(ABC):
     def random_batch(self, batch_size, *args, **kwargs):
         raise NotImplementedError
     
+    def random_indices(self, batch_size):
+        if self._size == 0: 
+            return np.arange(0, 0)
+        elif batch_size == 0:
+            idx = np.arange(0, self._size)
+            np.random.shuffle(idx)
+            return idx
+        return np.random.randint(0, self._size, batch_size)
+    
     def __getstate__(self):
         state = self.__dict__.copy()
         state["fields"] = {
@@ -133,10 +142,7 @@ class TransitionReplayPool(ReplayPool):
         self._advance(num_samples)
         
     def random_batch(self, batch_size, fields=None):
-        def random_indices(batch_size):
-            if self._size == 0: return np.arange(0, 0)
-            return np.random.randint(0, self._size, batch_size)
-        idx = random_indices(batch_size)
+        idx = self.random_indices(batch_size)
         if fields is None:
             fields = self.field_names
         return {
@@ -213,10 +219,7 @@ class TrajectoryReplayPool(ReplayPool):
         self._advance(num_samples)
         
     def random_batch(self, batch_size, fields=None):
-        def random_indices(batch_size):
-            if self._size == 0: return np.arange(0, 0)
-            return np.random.randint(0, self._size, batch_size)
-        idx = random_indices(batch_size)
+        idx = self.random_indices(batch_size)
         if fields is None:
             fields = list(self.field_names)
         return {

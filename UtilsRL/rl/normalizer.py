@@ -44,6 +44,18 @@ class BaseNormalizer(ABC):
     
     def forward(self, *args, **kwargs):
         return self.transform(*args, **kwargs)
+
+
+class DummyNormalizer(BaseNormalizer, nn.Module):
+    def __init__(self, **kwargs):
+        BaseNormalizer.__init__(self)
+        nn.Module.__init__(self)
+        
+    def transform(self, x: torch.Tensor, inverse: bool = False):
+        return x
+    
+    def update(self, x: torch.Tensor):
+        pass
       
 
 class RunningNormalizer(BaseNormalizer, nn.Module):
@@ -72,7 +84,7 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
             self._initialize(x.shape[-1])
         if inverse:
             return x * torch.sqrt(self.var+self.eps) + self.mean
-        return (x-self.mean) / self.sqrt(self.var + self.eps)
+        return (x-self.mean) / torch.sqrt(self.var + self.eps)
 
     def update(self, data: torch.Tensor):
         num_shape = len(data.shape)
@@ -90,7 +102,7 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         new_mean = old_mean + delta * batch_count / tot_count
         m_a = old_var * count
         m_b = batch_var * batch_count
-        m_2 = m_a + m_b + np.square(delta) * count * batch_count / (count + batch_count)
+        m_2 = m_a + m_b + torch.square(delta) * count * batch_count / (count + batch_count)
         new_var = m_2 / (tot_count)
         
         self.mean.data = new_mean

@@ -1,5 +1,8 @@
 # UtilsRL
-A util python module designed for reinforcement learning. Bug reports are welcomed.
+
+`UtilsRL` is a reinforcement learning utility python package, which is designed for fast integration into other RL projects. Despite its lightweightness, it still provides a full set of functions needed for RL algorithms development. 
+
+Currently `UtilsRL` is maintained by researchers from [LAMDA-RL](https://github.com/LAMDA-RL) group. Any bug report / feature request / improvement is appreciated. We additionally thank [@YuRuiii](https://github.com/YuRuiii), [@cmj2020](https://github.com/cmj2002), [@paperplane03](https://github.com/paperplane03) and [@momanto](https://github.com/momanto) for their participation in code testing and performance benchmarking. 
 
 ## Installation
 You can install this package directly from pypi:
@@ -9,9 +12,17 @@ pip install UtilsRL
 After installation, you may still need to configure some other dependencies based on your platform, such as PyTorch.
 
 ## Features & Usage
-### 1. Experiment Management
+### 1. RL Modules
+See sub-modules in `UtilsRL/rl` for details. We provide
++ **Actors** with different output head, such as gaussian distribution, categorical distributions. 
++ **Critics**. For now we only implement single critic, but we have plans for  implementing ensemble critics. 
++ **Buffers**, which replay transitions or trjectories. 
++ **Normalizers**, which normalizes data in multiple modes. 
+
+
+### 2. Experiment Managing
 We provide a handful of functions for experiment management. All of them are placed under `UtilsRL.exp`, including: 
-#### 1.1 Argument Parsing
+#### 2.1 Argument Parsing
 The argument parsing utils in this package provides three features:
 1. **Supporting for multiple types of config files.** `parse_args` can parse json, yaml, or even a python config module which is imported ahead
    ```python
@@ -49,7 +60,7 @@ The argument parsing utils in this package provides three features:
     args = parse_args(config_module)
     print(args)
     print(">>>>>>>>>>>>>>>>>>>>>>")
-    print(args.trainer.learning_rate)
+    print(args.TrainerArgs.learning_rate)
     ```
     The outputs are
     ```python
@@ -80,7 +91,7 @@ The argument parsing utils in this package provides three features:
     args = update_args(args, unknown)
     ``` 
 
-#### 1.2 Device and Seed Management
+#### 2.2 Device and Seed Management
 We provide a set of utils functions of selecting device and setting seed in `UtilsRL.exp.device` `UtilsRL.exp.seed`. Please take time and check these files. 
 
 A *setup* function is available in top-level `UtilsRL.exp`, which will setup the arguments with logger, device and seed which you provide. 
@@ -91,12 +102,12 @@ setup(args, logger=None, device="cuda:0", seed=None)  # seed will be initialized
 setup(args, logger=None, device=None, seed="4234")  # a most free gpu will be selected as device
 ```
 
-#### 1.3 Snapshot
+#### 2.3 Snapshot
 You can make a snapshot of the experiment code by passing `--UtilsRL.snapshot <name>` to the program. UtilsRL will commit all the changes to a new branch whose name is `<name>`, and then return to the original branch. 
 After creating the branch, its name will be added to `args`. You can find its name by `args.UtilsRL.snapshot_branch`, and git diff that branch later to checkout the changes from which you made. 
 
 
-### 2. Monitor
+### 3. Monitor
 Monitor listens at the main loop of the training process, and displays the process with tqdm meter. 
 ```python
 from UtilsRL.monitor import Monitor
@@ -143,7 +154,7 @@ class Trainer():
             # continue training
 ```
 
-### 3. Logger
+### 4. Logger
 Logger provides a rather shallow capsulation for `torch.utils.tensorboard.SummaryWriter`. 
 
 ```python
@@ -158,8 +169,8 @@ logger.log_str("This is a sentence", type="LOG")
 logger.log_str("Here occurs an error", type="ERROR") 
 
 # log scalar and a dict of scalars repectively
-logger.log_scala(tag="var_name", value=1.0, step=1)
-logger.log_scalas(main_tag="group_name", tag_scalar_dict={
+logger.log_scalar(tag="var_name", value=1.0, step=1)
+logger.log_scalars(main_tag="group_name", tag_scalar_dict={
     "var1": 1.0, 
     "var2": 2.0
 }, step=1)

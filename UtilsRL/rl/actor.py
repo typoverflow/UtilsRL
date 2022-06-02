@@ -76,7 +76,7 @@ class SquashedDeterministicActor(DeterministicActor):
         self.actor_type = "SqushedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
-        action_prev_tanh = super().forward(x)
+        action_prev_tanh = super().forward(input)
         return torch.tanh(action_prev_tanh)
             
 
@@ -122,11 +122,10 @@ class GaussianActor(BaseActor):
         
         if fix_logstd is not None:
             self._logstd_is_layer = False
-            self.logstd = nn.Parameter(torch.tensor(fix_logstd, dtype=torch.float), requires_grad=False).to(device)
+            self.logstd = nn.Parameter(torch.tensor(fix_logstd, dtype=torch.float), requires_grad=False)
         elif not conditioned_logstd:
             self._logstd_is_layer = False
-            self.logstd = -0.5 * torch.ones([self.output_dim], dtype=torch.float)
-            self.logstd = nn.Parameter(self.logstd, requires_grad=True).to(device)
+            self.logstd = nn.Parameter(-0.5 * torch.ones([self.output_dim], dtype=torch.float), requires_grad=True)
         else:
             self._logstd_is_layer = True
             self.output_dim = output_dim = 2*output_dim

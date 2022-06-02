@@ -8,7 +8,7 @@ import numpy as np
 from operator import itemgetter
 
 from UtilsRL.math import discounted_cum_sum
-from UtilsRL.rl.normalizer import RunningNormalizer
+from UtilsRL.rl.normalizer import RunningNormalizer, DummyNormalizer
 from UtilsRL.rl.buffer import TransitionReplayPool
 from UtilsRL.rl.actor import SquashedGaussianActor
 from UtilsRL.rl.critic import SingleCritic
@@ -37,7 +37,7 @@ critic1_backend = MLP(args.obs_shape, 0, args.critic_hidden_dims, activation=nn.
 
 actor = SquashedGaussianActor(
     actor_backend, args.actor_hidden_dims[-1], args.action_shape, 
-    device=args.device, reparameterize=False, conditioned_logstd=True, hidden_dims=args.actor_output_hidden_dims
+    device=args.device, reparameterize=False, conditioned_logstd=False, hidden_dims=args.actor_output_hidden_dims
 ).to(args.device)
 critic1 = SingleCritic(
     critic1_backend, args.critic_hidden_dims[-1], 1, 
@@ -51,7 +51,7 @@ critic1 = SingleCritic(
 actor_optim = torch.optim.Adam(actor.parameters(), lr=args.actor_lr)
 critic_optim = torch.optim.Adam([*critic1.parameters()], lr=args.critic_lr)
 
-obs_normalizer = RunningNormalizer(shape=args.obs_shape)
+obs_normalizer = DummyNormalizer(shape=args.obs_shape).to(args.device)
 
 # 4. Define the agent logic, including update, get_action and get_value
 def update(data_batch):
@@ -62,10 +62,17 @@ def update(data_batch):
     logprob_batch = torch.from_numpy(logprob_batch).float().to(args.device)
     advantage_batch = torch.from_numpy(advantage_batch).float().to(args.device)
     return_batch = torch.from_numpy(return_batch).float().to(args.device)
+    
+    with torch.no_grad():
+        obs_batch = obs_normalizer.transform(obs_batch)
+        # obs_normalizer.update(obs_batch)
+        advantage_batch = (advantage_batch) / (advantage_batch.std() + 1e-6)
+    
         
-    actor_loss_value = critic_loss_value = entropy_loss_value = tot_approx_kl = clip_fraction = 0
+    actor_loss_value = critic_loss_value = entropy_loss_value = actor_logstd = actor_mean = tot_approx_kl = clip_fraction = 0
     for actor_step in range(args.actor_repeat_step):
         new_logprob, new_entropy = actor.evaluate(obs_batch, action_batch)
+        mean, logstd = actor.forward(obs_batch)
         ratio = torch.exp(new_logprob - logprob_batch)
         approx_kl = (logprob_batch - new_logprob).mean().item()
         if approx_kl > 1.5 * args.target_kl:
@@ -84,6 +91,8 @@ def update(data_batch):
         entropy_loss_value += entropy_loss.detach().cpu().item()
         tot_approx_kl += approx_kl
         clip_fraction += (abs(ratio-1.0) > args.clip_range).float().mean().detach().cpu().item()
+        actor_logstd += torch.abs(logstd.data).sum(-1).mean().detach().cpu().item()
+        actor_mean += torch.abs(mean.data).sum(-1).mean().detach().cpu().item()
         
     for critic_step in range(args.critic_repeat_step):
         value = critic1(obs_batch)
@@ -96,14 +105,17 @@ def update(data_batch):
         
     ret_dict = {
         "loss/critic": critic_loss/critic_step, 
-        "misc/actor_update": actor_step
+        "misc/actor_update": actor_step, 
+        "misc/critic_value": value.mean().detach().cpu().item()
     }
     if actor_step > 0:
         ret_dict.update({
             "loss/actor": actor_loss_value/actor_step,
             "loss/entropy": entropy_loss_value/actor_step,
             "misc/approx_kl": tot_approx_kl/actor_step,
-            "misc/clip_fraction": clip_fraction/actor_step
+            "misc/clip_fraction": clip_fraction/actor_step, 
+            "misc/actor_logstd": actor_logstd/actor_step, 
+            "misc/actor_mean": actor_mean/actor_step,
         })
     return ret_dict
 
@@ -126,7 +138,7 @@ def get_action(obs, deterministic=False):
 
 
 # 5. Define the training logics
-def compute_gae(rewards, values, last_v, gamma=0.99, lam=0.95):
+def compute_gae(rewards, values, last_v, gamma=0.99, lam=0.97):
     rewards = np.append(rewards, last_v)
     values = np.append(values, last_v)
     deltas = rewards[:-1] + gamma * values[1:] - values[:-1]
@@ -152,19 +164,20 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
     sample_ph = buffer.get_placeholder(args.sample_per_epoch)
     traj_length = traj_return = traj_start = 0
     for env_step in range(args.sample_per_epoch):
-        action, logprob = get_action(obs)
+        obs_norm = obs_normalizer.transform(torch.from_numpy(obs).float().to(args.device)).cpu().numpy()
+        action, logprob = get_action(obs_norm)
         next_obs, reward, done, _ = env.step(action)
         # traj_return += reward
         traj_length += 1
         tot_env_step += 1
         
-        value = get_value(obs)
+        value = get_value(obs_norm)
         
         sample_ph["obs"][env_step] = obs
         sample_ph["action"][env_step] = action
         sample_ph["logprob"][env_step] = logprob
         sample_ph["next_obs"][env_step] = next_obs
-        sample_ph["reward"][env_step] = reward / args.reward_scale
+        sample_ph["reward"][env_step] = reward
         sample_ph["done"][env_step] = done
         sample_ph["value"][env_step] = value
         
@@ -189,9 +202,18 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
         
         obs = next_obs
     
+    if i_epoch < args.warmup_epoch:
+        obs_torch = torch.from_numpy(sample_ph["obs"]).float().to(args.device)
+        obs_normalizer.update(obs_torch)
+        continue
+    # sample_ph["obs"] = obs_normalizer.transform(obs_torch).cpu().numpy()
     buffer.add_samples(sample_ph)
-    data_batch = buffer.random_batch(args.batch_size)
+    data_batch = buffer.random_batch(0)
+    data_batch["obs"] = obs_normalizer.transform(torch.from_numpy(data_batch["obs"]).float().to(args.device)).cpu().numpy()
     train_loss = update(data_batch)
+
+    obs_torch = torch.from_numpy(sample_ph["obs"]).float().to(args.device)
+    obs_normalizer.update(obs_torch)
     
     if i_epoch % args.eval_interval == 0:
         traj_lengths = []
@@ -200,8 +222,9 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
             traj_return = traj_length = 0
             state, done = env.reset(), False
             for step in range(args.max_traj_length):
-                action, _= get_action(state, deterministic=True)
-                next_state, reward, done, _ = env.step(action)
+                state_norm = obs_normalizer.transform(torch.from_numpy(state).float().to(args.device)).cpu().numpy()
+                action, _= get_action(state_norm, deterministic=True)
+                state, reward, done, _ = env.step(action)
                 traj_return += reward
                 traj_length += 1
                 if done:
@@ -213,5 +236,9 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
             "eval/traj_length": np.mean(traj_lengths)
         })
     
-    logger.log_scalars("", train_loss, step=i_epoch)  
+    for k, v in train_loss.items():
+        logger.log_scalar(k, v, i_epoch)
+    if isinstance(obs_normalizer, RunningNormalizer):
+        logger.log_scalar("misc/obs_mean", torch.norm(obs_normalizer.mean).cpu().numpy(), i_epoch)
+        logger.log_scalar("misc/obs_var", torch.norm(obs_normalizer.var).cpu().numpy(), i_epoch)
         
