@@ -7,7 +7,7 @@ actor_output_hidden_dims = [64, ]
 critic_output_hidden_dims = [64, ]
 
 # reward_scale = 5
-warmup_epoch = 5
+warmup_epoch = 20
 actor_repeat_step = 10
 critic_repeat_step = 10
 clip_range = 0.2

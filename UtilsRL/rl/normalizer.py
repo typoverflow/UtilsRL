@@ -81,18 +81,22 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         
     def transform(self, x: torch.Tensor, inverse: bool = False):
         if not self._initialized:
-            self._initialize(x.shape[-1])
+            self._initialize(x.shape[1:])
         if inverse:
             return x * torch.sqrt(self.var+self.eps) + self.mean
         return (x-self.mean) / torch.sqrt(self.var + self.eps)
 
     def update(self, data: torch.Tensor):
+        if not self._initialized:
+            self._initialize(data.shape[1:])
         num_shape = len(data.shape)
-        batch_mean = torch.mean(data, dim=[_ for _ in range(num_shape-1)]).detach().clone()
-        batch_var = torch.var(data, dim=[_ for _ in range(num_shape-1)]).detach().clone()
-        batch_count = np.prod(data.shape[:-1])
+        batch_mean = torch.mean(data, dim=0).detach().clone()
+        batch_var = torch.var(data, dim=0).detach().clone()
+        batch_count = data.shape[0]
         device = batch_mean.device
-
+        
+        if self.mean.shape != batch_mean.shape:
+            raise ValueError(f"Expecting tensors of shape (B, {self.mean.shape}), found (B, {batch_mean.shape}).")
         old_mean = self.mean.data.to(device)
         old_var = self.var.data.to(device)
         count = self.count.data.to(device)
@@ -160,8 +164,8 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
     
     def update(self, data: torch.Tensor):
         num_shape = len(data.shape)
-        batch_mean = torch.mean(data, dim=[_ for _ in range(num_shape-1)])
-        batch_std = torch.std(data, dim=[_ for _ in range(num_shape-1)])
+        batch_mean = torch.mean(data, dim=0)
+        batch_std = torch.std(data, dim=0)
         
         self._initialize(mean=batch_mean, std=batch_std, var=None)
            
@@ -170,7 +174,7 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
-        self._initialized = nn.Parameter(torch.tensor(False).to(device), requires_grad=False)
+        self._initialized = nn.Parameter(torch.tensor(False), requires_grad=False)
         self.eps = eps
         if "min" in kwargs or "max" in kwargs:
             self._initialize(min=kwargs.get("min", None), max=kwargs.get("max", None))
@@ -201,8 +205,8 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
     
     def update(self, data: torch.Tensor):
         num_shape = len(data.shape)
-        batch_min = torch.min(data, dim=[_ for _ in range(num_shape-1)])
-        batch_max = torch.max(data, dim=[_ for _ in range(num_shape-1)])
+        batch_min = torch.min(data, dim=0)
+        batch_max = torch.max(data, dim=0)
         
         self._initialize(min=batch_min, max=batch_max)
         

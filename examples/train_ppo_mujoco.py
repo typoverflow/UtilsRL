@@ -20,7 +20,7 @@ from UtilsRL.exp import parse_args, setup
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
 logger = TensorboardLogger(args.log_path, args.name)
-setup(args, logger)
+setup(args, logger, args.device)
 
 # 2. Add environment specs to arguments
 task = "Hopper-v3"
@@ -51,7 +51,7 @@ critic1 = SingleCritic(
 actor_optim = torch.optim.Adam(actor.parameters(), lr=args.actor_lr)
 critic_optim = torch.optim.Adam([*critic1.parameters()], lr=args.critic_lr)
 
-obs_normalizer = DummyNormalizer(shape=args.obs_shape).to(args.device)
+obs_normalizer = RunningNormalizer(shape=args.obs_shape).to(args.device)
 
 # 4. Define the agent logic, including update, get_action and get_value
 def update(data_batch):
@@ -63,10 +63,10 @@ def update(data_batch):
     advantage_batch = torch.from_numpy(advantage_batch).float().to(args.device)
     return_batch = torch.from_numpy(return_batch).float().to(args.device)
     
-    with torch.no_grad():
-        obs_batch = obs_normalizer.transform(obs_batch)
+    # with torch.no_grad():
+        # obs_batch = obs_normalizer.transform(obs_batch)
         # obs_normalizer.update(obs_batch)
-        advantage_batch = (advantage_batch) / (advantage_batch.std() + 1e-6)
+    advantage_batch = (advantage_batch) / (advantage_batch.std() + 1e-6)
     
         
     actor_loss_value = critic_loss_value = entropy_loss_value = actor_logstd = actor_mean = tot_approx_kl = clip_fraction = 0
@@ -212,9 +212,6 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
     data_batch["obs"] = obs_normalizer.transform(torch.from_numpy(data_batch["obs"]).float().to(args.device)).cpu().numpy()
     train_loss = update(data_batch)
 
-    obs_torch = torch.from_numpy(sample_ph["obs"]).float().to(args.device)
-    obs_normalizer.update(obs_torch)
-    
     if i_epoch % args.eval_interval == 0:
         traj_lengths = []
         traj_returns = []
@@ -235,7 +232,10 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
             "eval/traj_return": np.mean(traj_returns), 
             "eval/traj_length": np.mean(traj_lengths)
         })
-    
+        
+    obs_torch = torch.from_numpy(sample_ph["obs"]).float().to(args.device)
+    obs_normalizer.update(obs_torch)  
+     
     for k, v in train_loss.items():
         logger.log_scalar(k, v, i_epoch)
     if isinstance(obs_normalizer, RunningNormalizer):
