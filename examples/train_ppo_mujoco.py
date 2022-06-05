@@ -16,6 +16,7 @@ from UtilsRL.rl.net import MLP
 from UtilsRL.logger import TensorboardLogger
 from UtilsRL.monitor import Monitor
 from UtilsRL.exp import parse_args, setup
+from UtilsRL.misc.decorator import profile
 
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
@@ -119,6 +120,7 @@ def update(data_batch):
         })
     return ret_dict
 
+@profile
 @torch.no_grad()
 def get_value(obs):
     if not isinstance(obs, torch.Tensor):
@@ -127,6 +129,7 @@ def get_value(obs):
         obs = torch.unsqueeze(obs, 0)
     return torch.squeeze(critic1(obs)).detach().cpu().numpy()
 
+@profile
 @torch.no_grad()
 def get_action(obs, deterministic=False):
     if not isinstance(obs, torch.Tensor):

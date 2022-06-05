@@ -1,4 +1,8 @@
 import functools
+import time
+import atexit
+
+from UtilsRL.logger import logger
 
 def depreciated(func):
     """
@@ -41,3 +45,21 @@ def retry(retry_times, fallback):
 
 def fallback(func):
     return retry(1, func)
+
+    
+def profile(func):
+    called_times = 0
+    elapsed_time = 0
+    def exit_logger():
+        logger.log_str(f"[Profile]: Function {func.__name__}, called {called_times} times, total elapsed time {elapsed_time}(s), avg {elapsed_time/called_times if called_times else 0}(s).", type="WARNING")
+    atexit.register(exit_logger)
+    @functools.wraps(func)
+    def wrapper(*args, **kwargs):
+        beg = time.time()
+        ret = func(*args, **kwargs)
+        nonlocal called_times
+        nonlocal elapsed_time
+        elapsed_time += time.time() - beg
+        called_times += 1
+        return ret
+    return wrapper
