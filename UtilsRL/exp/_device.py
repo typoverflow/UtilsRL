@@ -55,13 +55,13 @@ def select_free_cuda():
             return np.asarray([int(i.split()[2]) for i in t])
         
         total, used, reserved = get_volume(total), get_volume(used), get_volume(reserved)
-        return np.argmax(total-used-reserved)
+        return torch.device("cuda:"+str(np.argmax(total-used-reserved)))
     except Exception as e:
         cmd4 = os.popen("nvidia-smi -q -d Memory | grep -A4 GPU | grep Free")
         free = cmd4.readlines()
         cmd4.close()
         
         free = get_volume(free)
-        return np.argmax(free)
+        return torch.device("cuda:"+str(np.argmax(free)))
         
     

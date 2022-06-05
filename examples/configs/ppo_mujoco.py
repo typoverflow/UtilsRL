@@ -1,3 +1,4 @@
+device = 0
 actor_lr = 3e-4
 critic_lr = 3e-4
 actor_hidden_dims = [64, 64]
