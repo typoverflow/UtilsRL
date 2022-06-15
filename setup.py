@@ -5,6 +5,20 @@ ROOT_DIR = pathlib.Path(__file__).parent
 README = (ROOT_DIR / "README.md").read_text()
 VERSION = (ROOT_DIR / "VERSION").read_text()
 
+def get_install_requires():
+    return [
+        "gym>=0.19", 
+        "tqdm", 
+        "numpy", 
+        "tensorboard", 
+        "torch", 
+        "pandas"
+    ]
+
+def get_extras_require():
+    return {}
+
+
 setup(
     name                = "UtilsRL", 
     version             = VERSION, 
@@ -17,9 +31,8 @@ setup(
     license             = "MIT", 
     packages            = find_packages(),
     include_package_data = True, 
-    install_requires = [
-        "cloudpickle>=1.2.0", 
-    ], 
     tests_require=["pytest", "mock"], 
     python_requires=">=3.7", 
+    install_requires = get_install_requires(), 
+    # extras_require = get_extras_require(), 
 )

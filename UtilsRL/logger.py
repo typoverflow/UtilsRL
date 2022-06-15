@@ -1,5 +1,4 @@
 import os
-import json
 import pickle
 import numpy as np
 
@@ -25,13 +24,23 @@ class BaseLogger(ABC):
         raise NotImplementedError
 
 class DummyLogger(BaseLogger):
+    """Create a dummy logger which just calls ``print``. This is helpful when dubugging output issues. 
+    """
+    
     def __init__(self, *args, **kwargs):
         pass
 
     def log_str(self, msg, *args, **kwargs):
+        """Print the msg to stdout. 
+
+        :param msg: the message to print. 
+        """
         print(msg)
 
 class ColoredLogger(BaseLogger):
+    """Create a logger which prints msg to terminal with ansi colors. 
+    """
+    
     def __init__(self, *args, **kwargs):
         pass
 
@@ -40,12 +49,17 @@ class ColoredLogger(BaseLogger):
         s: str, 
         type: Optional[str] = None,
         *args, **kwargs):
-        """Log string to terminal (if self.terminal is True) and txt file (if self.txt is True).
+        """Print the ``msg`` to stdout with ansi colors. 
         
-        Args: 
-            s: String to log. The  string can be formatted with `{}`, 
-                and use the *args to fill in the blanks.
-            type: Type of the log. When logging to terminal, this will determine the ansi color;
+        :param s: the message to print. 
+        :param type: the type of the message, which also controls the color:
+        
+            * ``None``: no color
+            * ``"Error"``: red
+            * ``"LOG"``: blue
+            * ``"SUCCESS"``: green
+            * ``"WARNING"``: yellow
+            * ``"RESET"``: reset all the colors
         """
         if type:
             type = type.upper()
@@ -61,7 +75,13 @@ class ColoredLogger(BaseLogger):
         print("{}[{}]{}\t{}".format(cmap[type], time_fmt, cmap["RESET"], s))
 
 class TensorboardLogger(BaseLogger):
-    """TensorBoard Logger with full data-type support.
+    """Create a Tensorboard logger.
+    
+    :param log_path: the base path where the log lies.
+    :param name: the name of the log / experiment, will be used to construct the event file name. 
+    :param bool terminal: whether messages will be printed to terminal.
+    :param bool txt: whether messages will be printed to a text file.
+    :param int warning_level: the level of warning messages, not used for now.
     """
 
     def __init__(self, log_path, name, terminal=True, txt=False, warning_level=3, *args, **kwargs):
@@ -105,13 +125,21 @@ class TensorboardLogger(BaseLogger):
         txt: bool = True, 
         level: int = 4, 
         *args, **kwargs):
-        """Log string to terminal (if self.terminal is True) and txt file (if self.txt is True).
+        """Print the ``msg`` to stdout or txt file. 
         
-        Args: 
-            s: String to log. The  string can be formatted with `{}`, 
-                and use the *args to fill in the blanks.
-            type: Type of the log. When logging to terminal, this will determine the ansi color;
+        :param s: the message to print. 
+        :param type: the type of the message, which also controls the color:
+        
+            * ``None``: no color
+            * ``"Error"``: red
+            * ``"LOG"``: blue
+            * ``"SUCCESS"``: green
+            * ``"WARNING"``: yellow
+            * ``"RESET"``: reset all the colors
+        :param terminal: whether s should be printed to terminal, masks ``self.terminal``.
+        :param txt: whether s should be printed to txt file, masks ``self.txt``.
         """
+        
         if level < self.warning_level:
             return
         cmap = {
@@ -134,12 +162,11 @@ class TensorboardLogger(BaseLogger):
         tag: str, 
         value: Union[float, numpy_compatible], 
         step: Optional[int] = None):
-        """Add scalar data to summary. 
+        """Add scalar to tensorboard summary.
         
-        Args: 
-            tag: Identifier of the data.
-            value: Valur to save. If string passed, it will be treated as a caffe blob. 
-            step: Global step value to record.
+        :param tag: the identifier of the scalar.
+        :param value: value to record.
+        :param step: global timestep of the scalar. 
         """
         self.tb_writer.add_scalar(tag, value, step)
 
@@ -148,25 +175,30 @@ class TensorboardLogger(BaseLogger):
         main_tag: str, 
         tag_scalar_dict: Dict[str, Union[float, numpy_compatible]], 
         step: Optional[int] = None):
-        """Log many scalar data. 
-        Note that this function also keeps logged scalars in memory. In extreme case it explodes your RAM.
-
-        Args:
-            main_tag: The parent name for the tags
-            tag_scalar_dict: Key-value pair storing the tag and corresponding values
-            step: Global step value to record
+        """Add scalars which share the main tag to tensorboard summary.
+        
+        :param main_tag: the shared main tag of the scalars, can be a null string.
+        :param tag_scalar_dict: a dictionary of tag and value.
+        :param step: global timestep of the scalars.
         """
-        if main_tag is None:
+        
+        if main_tag is None or main_tag == "":
             main_tag = ""
+        else:
+            main_tag = main_tag+"/"
+            
         for tag, value in tag_scalar_dict.items():
-            self.tb_writer.add_scalar("/".join([main_tag, tag]), value, step)
+            self.tb_writer.add_scalar(main_tag+tag, value, step)
 
     def log_dict(
         self, 
         tag: str, 
         data: dict):
-        """Log dict data. """
-
+        """Print a Python dict object to terminal. The dict will be formatted. 
+        
+        :param tag: the identifier of the dict.
+        :param data: a dict-like object.
+        """
         def pretty(d, indent=0):
             ret = ""
             for key, value in d.items():
@@ -185,24 +217,16 @@ class TensorboardLogger(BaseLogger):
         img_tensor: numpy_compatible, 
         step: Optional[int] = None, 
         dataformat: Optional[str] = "CHW"):
-        """Log image.
-        Note that this requires the ``pillow`` package.
-
-        Args:
-            tag: Data identifier
-            img_tensor: An `uint8` or `float` Tensor of shape `
+        """Add image to tensorboard summary. Note that this requires ``pillow`` package. 
+        
+        :param tag: the identifier of the image.
+        :param img_tensor: an `uint8` or `float` Tensor of shape `
                 [channel, height, width]` where `channel` is 1, 3, or 4.
                 The elements in img_tensor can either have values
                 in [0, 1] (float32) or [0, 255] (uint8).
                 Users are responsible to scale the data in the correct range/type.
-            global_step: Global step value to record
-            walltime: Optional override default walltime (time.time()) of event.
-            dataformats: This parameter specifies the meaning of each dimension of the input tensor.
-        Shape:
-            img_tensor: Default is :math:`(3, H, W)`. You can use ``torchvision.utils.make_grid()`` to
-            convert a batch of tensor into 3xHxW format or use ``add_images()`` and let us do the job.
-            Tensor with :math:`(1, H, W)`, :math:`(H, W)`, :math:`(H, W, 3)` is also suitible as long as
-            corresponding ``dataformats`` argument is passed. e.g. CHW, HWC, HW.
+        :param global_step: global step. 
+        :param dataformats: This parameter specifies the meaning of each dimension of the input tensor.
         """
         self.tb_writer.add_image(tag, img_tensor, step, dataformats=dataformat)
 
@@ -213,20 +237,13 @@ class TensorboardLogger(BaseLogger):
         step: Optional[int] = None, 
         fps: Optional[Union[int, float]] = 4, 
         dataformat: Optional[str] = "NTCHW"):
-        """Log video data.
+        """Add a piece of video to tensorboard summary. Note that this requires ``moviepy`` package.
 
-        Note that this requires the ``moviepy`` package.
-
-        Args:
-            tag: Data identifier
-            vid_tensor: Video data
-            global_step: Global step value to record
-            fps: Frames per second
-            walltime: Optional override default walltime (time.time()) of event
-            dataformats: Specify different permutation of the video tensor
-        Shape:
-            vid_tensor: :math:`(N, T, C, H, W)`. The values should lie in [0, 255]
-            for type `uint8` or [0, 1] for type `float`.
+        :param tag: the identifier of the video.
+        :param vid_tensor: video data. 
+        :param global_step: global step.
+        :param fps: frames per second.
+        :param dataformat: specify different permutation of the video tensor.
         """
         self.tb_writer.add_video(tag, vid_tensor, step, fps)
 
@@ -235,13 +252,11 @@ class TensorboardLogger(BaseLogger):
         name: str, 
         object: Any, 
         path: Optional[str] = None):
-        """Log python object to a given path.
+        """Save a Python object to the given path.
         
-        Args: 
-            name: name of the object.
-            object: The python object to save.
-            path: The directory to save the object. If the value None, then 
-                the logger will use self.log_path.
+        :param name: the identifier of the object.
+        :param object: the object to save.
+        :param path: the path to save the object, will be created if not exist; will be set to ``self.log_path`` if None.
         """
 
         if path is None:
@@ -256,12 +271,10 @@ class TensorboardLogger(BaseLogger):
         self,
         name: str, 
         path: Optional[str] = None):
-        """Restore saved object.
-
-        Args: 
-            name: name of the object, used to index the binary file in path. 
-            path: The directory to search for the file. If None, then logger 
-                will look up in self.log_path.
+        """Restore a previously saved Python object.
+        
+        :param name: the identifier of the object.
+        :param path: the path to load the object, will be set to ``self.log_path`` if None.
         """
 
         if path is None:

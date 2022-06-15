@@ -12,9 +12,11 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
-sys.path.insert(0, os.path.abspath('../../UtilsRL'))
+# # sys.path.insert(0, os.path.abspath('.'))
+sys.path.insert(0, os.path.abspath('../..'))
 
+# import UtilsRL
+import sphinx_rtd_theme
 
 # -- Project information -----------------------------------------------------
 
@@ -31,18 +33,11 @@ author = 'typoverflow'
 extensions = [
     "sphinx_rtd_theme", 
     "sphinx.ext.autodoc", 
-    "sphinx.ext.doctest",
-    "sphinx.ext.intersphinx",
-    "sphinx.ext.coverage",
-    # 'sphinx.ext.imgmath',
-    "sphinx.ext.mathjax",
-    "sphinx.ext.ifconfig",
-    "sphinx.ext.viewcode",
-    "sphinx.ext.githubpages",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+source_suffix = [".rst"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
@@ -82,5 +77,12 @@ autodoc_default_options = {
         ]
     )
 }
-# autodoc_typehints_format = 'fully-qualified'
+autodoc_typehints = 'description'
+autodoc_typehints_format = 'short'
 autodoc_member_order = "bysource"
+
+
+html_theme_path = [sphinx_rtd_theme.get_html_theme_path()]
+html_static_path = ["_static"]
+def setup(app):
+    app.add_css_file("css/style.css")
