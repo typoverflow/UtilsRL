@@ -16,6 +16,7 @@ def log2pd(
     max_step: Optional[int] = None, 
     size_guidance: Optional[Dict[str, int]] = None
 ) -> pd.DataFrame:
+    """Parse the given tensorboard event file and return a pandas.DataFame object."""
     file_name = [f for f in os.listdir(log_dir) if "tfevents" in f]
     if len(file_name) != 1:
         raise ValueError(f"There should be only one event file in the log directory, got {file_name}")
@@ -48,6 +49,8 @@ def logs2pd(
     max_step: Optional[int] = None, 
     size_guidance: Optional[Dict[str, int]] = None
 ):
+    """Parse the given tensorboard event files and return a unioned pandas.DataFrame object, \
+        where the column name identifies each log file with their given name in log_dirs."""
     dfs = list()
     name_log_mapping = dict()
     if isinstance(log_dirs, str):
