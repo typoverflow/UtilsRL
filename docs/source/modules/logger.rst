@@ -10,7 +10,6 @@ In this page we mainly present the api docs of each logger, and we refer the rea
 
 UtilsRL.logger.DummyLogger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
-
 .. autoclass:: UtilsRL.logger.DummyLogger
     :members:
     :show-inheritance:

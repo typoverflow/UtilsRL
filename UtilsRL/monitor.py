@@ -41,15 +41,13 @@ class MonitorError(Exception):
 
 
 class Monitor(object):
-    """Monitor is designed to monitor the main for loog of the training process. 
-        It currently supports for 3 purposes:
-        - Monitor.listen() wraps a iterable and visualize the progress meter just like tqdm does, 
-            but Monitor identifies output (tty or file) and adjust its behavior accordingly.
-        - Monitor.register_callback() registers a callback function which will be called when
-            the condition is satisfied. A simple usage is to send yourself an email for notification 
-            when training is done. 
-        - Monitor.register_context() registers group of variables as `context`. Monitor will save the context 
-            variables periodically and restore them if the training is resumed from a checkpoint.
+    """Monitor is designed to monitor the main training loop and inform the user about the progress. \
+        It mainly serves for three purposes: 1. visualize the training progress; 2. register callback functions to trigger actions \
+        during certain stage of training; and 3. register context variables to save & load training context. 
+
+    :param desc: description of the Monitor, will be displayed at the left side of the progress meter.
+    :param out_dir: output directory of the products (model checkpoints). This must be specified if you are to use :func:`~UtilsRL.monitor.Monitor.register_context`.
+    :param logger: hook of the logger to be used inside Monitor. If set this to `None`, a :class:`~UtilsRL.logger.DummyLogger` will be used.
     """
 
     @staticmethod
@@ -60,6 +58,17 @@ class Monitor(object):
 
     @staticmethod
     def email(msg, to, user, password, smtp_server=None, port=None):
+        """Send an email from to a given receiver. 
+        
+        :param str msg: the message to be sent in the email.
+        :param str to: email address of the receiver.
+        :param str user: email address of the sender.
+        :param str password: the password string for sender email.
+        :param str smtp_server: the smtp server address for email sending. If this is set to `None`, a default \
+            server address will be used according to the email's host.
+        :param int port: the smtp server port for email sending. If this is set to `None`, a default port will \
+            be used according to the email's host.
+        """
         def get_host(user):
             return user.split("@")[1].split(".")[0]
         host_info = {
@@ -87,13 +96,7 @@ class Monitor(object):
                  out_dir: Optional[str] = None, 
                  logger: Optional[BaseLogger] = None, 
                  *args, **kwargs):
-        """Monitor the training iteration. 
 
-        Args: 
-            desc: Description of the Monitor.
-            out_dir: Output directory of the products. Must be specified if to use register_context.
-            logger: Hook of the Logger object for internal use. If set to None, a dummy logger will be used.
-        """
         self.desc = desc if tqdm_cls == tqdm_file else "\033[1;37m[{}]\033[0m".format(desc)
         self.tqdm_cls = tqdm_cls
         self.out_dir = out_dir
@@ -112,14 +115,13 @@ class Monitor(object):
                 initial: Optional[int] = 0, 
                 total: Optional[int] = None, 
                 miniters: Optional[int] = None):
-        """Set the monitor to listen at a certain iteration. Note that a monitor can be assigned 
+        """Set the monitor to listen at the training loop. Note that a monitor can be assigned \
             for listening only once.
 
-        Args: 
-            iterable: The Iterable object to wrap up.
-            initial: Startpoint of the iteration.
-            total: Total number of iteration. If left None, total will be set to `len(iterable)`.
-            miniters: Minimum number of iterations between two updates. If set to None, it will be set to 1.
+        :param iterable: an iterable to listen at, for example, `range(5)`.
+        :param initial: startpoint of the iteration.
+        :param total: total number of iterations. If this is set to `None`, the total number of iterations will be `len(iterable)`.
+        :param miniters: minimum number of iterations between adjacent updates to the meter. 
         """
 
         if hasattr(self, "iterable") and self.iterable is not None:
@@ -141,17 +143,17 @@ class Monitor(object):
                           *args, **kwargs):
         """Register callback functions which will be called when `on` is satisfied.
         
-        Args: 
-            name: the name of the callback.
-            on: Specifies the condition. Possibile values are:
-                - None, then the callback will never be called. 
-                - 'exit', then the callback will be called on exit. 
-                - int, then the callback will be called at the beginning of `on`th iteration. 
-                - str which represents a percentage, then the callback will be called at this
-                    stage of training.  
-            callback: the callback funtion. It will take args and kwargs as input, and self.global_step
-                will also be added as keyward argument. So when defining a callbackj function, it's 
-                better to receive redundant kwargs with `**kwargs`.
+        :param name: the name of the callback function.
+        :param on: specifies the condition when `callback` is triggered. Legal values are:
+        
+            - None, then the callback will never be called. 
+            - `exit`, then the callback will be called on exit. 
+            - int, then the callback will be called at the beginning of `on`th iteration. 
+            - str which represents a percentage, then the callback will be called at this \
+                stage of training.
+        :param callback: the callback funtion. It will take args and kwargs as input, and self.global_step \
+            will also be added as keyward argument. **So when defining a callback function, it's \
+            recommended to add redundant kwargs with `**kwargs` to its signature**.
         """
         self.has_callbacks = True
         if on is None or on == False:
@@ -195,19 +197,19 @@ class Monitor(object):
             })
 
     def register_context(self, expressions, save_every=None, save_mode="replace", load_path=None):
-        """Register variables as context. Monitor will save the context variables 
-            periodically and restore them if the training is resumed from a checkpoint.
+        """Register variables as context. Monitor will save the context variables \
+            periodically and restore them if the training is resumed from a checkpoint. \
             Note: only one register_context call with valid save_every is permitted. 
 
-        Args:
-            expressions: The expressions of the variables which you wish to designate as context. 
-            save_every: save the context every `save_every` iterations. If set to None, the context 
-                will not be saved. 
-            save_mode: Specifies the mode of saving. Possibile values are:
-                - "replace": replace previously saved context. 
-                - "append": save context without replacing. 
-            load_path: Specifies the path of the checkpoint of the context to load. If set to None, 
-                the context will not be loaded.
+        :param expressions: the expressions of the variables which you wish to designate as context. 
+        :param save_every: save the context every `save_every` iterations. If set to None, the context 
+            will not be saved. 
+        :param save_mode: specifies the mode of saving.  values are:
+        
+            - "replace": replace previously saved context. 
+            - "append": save context without replacing. 
+        :param load_path: specifies the path of the checkpoint of the context to load. If set to None, 
+            the context will not be loaded.
         """
         
         if isinstance(expressions, str):
@@ -259,9 +261,6 @@ class Monitor(object):
                     c["callback"](*c["args"][0], **c["args"][1], global_step=self.global_step)
 
     def __iter__(self):
-        """Manully iterate self.tqdm. Note that we don't return self.tqdm
-            in self.listem so as to trace the global step.  
-        """
         tqdm_iter = iter(self.tqdm)
         while True: 
             try: 

@@ -1,9 +1,10 @@
+from pyparsing import Opt
 import torch
 import random
 import numpy as np
+from typing import Optional, Union
 
-
-def set_seed(seed=None):
+def set_seed(seed: Optional[Union[str, int]] = None):
     if seed is None:
         seed = np.random.randint(0, 2**32)
     seed = int(seed)

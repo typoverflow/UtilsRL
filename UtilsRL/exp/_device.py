@@ -1,15 +1,16 @@
 import os
-from time import get_clock_info
 import torch
+from typing import Union, Optional
 
-
-def select_device(id=None):
-    """Selects the device according to given ID. ID can be:
-        - (if torch.cuda.is_available() is False, then cpu will be selected anyway.)
-        - None, then a most free GPU will be selected for use. 
-        - "cpu", then cpu will be returned.
-        - int or "x" or "cuda:x", then gpu with corresponding ID will be 
-            selected unless `id` or `x` < 0. 
+def select_device(id: Optional[Union[str, int, torch.device]] = None) -> torch.device:
+    """Selects the device according to given ID.
+    
+    :param id: ID of the device to select, its value can be 
+    
+        - `None`: select the most free gpu (if cuda is available) or cpu (otherwise).
+        - `str`: if `"cpu"`, then cpu will be selected; if `"x"` or `"cuda:x"`, then the `x`-th gpu will be selected. 
+        - int: equals to `"x"`.
+        - :class:``~torch.device``, then select that device. 
     """
     
     if isinstance(id, torch.device):
@@ -30,7 +31,6 @@ def select_device(id=None):
         return torch.device("cpu")
     else:
         ret =  torch.device(f"cuda:{id}")
-        os.environ["CUDA_VISIBLE_DEVICES"] = str(id)
         return ret
 
 def select_free_cuda():

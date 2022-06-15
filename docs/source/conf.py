@@ -64,19 +64,19 @@ html_static_path = ['_static']
 
 # autodoc options
 exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
-autodoc_default_options = {
-    "special-members":
-    ", ".join(
-        [
-            "__len__",
-            "__call__",
-            "__getitem__",
-            "__setitem__",
-            # "__getattr__",
-            # "__setattr__",
-        ]
-    )
-}
+# autodoc_default_options = {
+#     "special-members":
+#     ", ".join(
+#         [
+#             # "__len__",
+#             # "__call__",
+#             # "__getitem__",
+#             # "__setitem__",
+#             # "__getattr__",
+#             # "__setattr__",
+#         ]
+#     )
+# }
 autodoc_typehints = 'description'
 autodoc_typehints_format = 'short'
 autodoc_member_order = "bysource"

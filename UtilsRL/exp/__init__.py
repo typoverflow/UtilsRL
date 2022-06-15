@@ -14,9 +14,17 @@ def setup(args,
           _logger: Optional[BaseLogger] = None, 
           _device: Optional[torch.device] = None, 
           _seed: Optional[int] = None):
-    """Setup the args for logger, device and seed. The sequence is:
-        given parameter -> args -> None
+    """Setup the args for logger, device and seed. The choice sequence is \
+        ``given parameter -> args -> None (default)``, for example, if `_device` is not `None`, \
+        then `_device` will be selected as the device-to-use during this experiment; otherwise, `args.device` will be used, \
+        if `args.device` is also `None`, then the return object of :func:`~select_device` will be used. 
+        
+    :param args: arguments of this experiment, should be a dict-like or `NameSpace` object.
+    :param _logger: specify the logger to use. 
+    :param _device: specify the device to use.
+    :param _seed: specify the seed to use. 
     """
+    
     if not _logger is None:
         _logger = _logger
     elif "logger" in args:

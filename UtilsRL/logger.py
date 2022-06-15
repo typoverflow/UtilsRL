@@ -24,7 +24,7 @@ class BaseLogger(ABC):
         raise NotImplementedError
 
 class DummyLogger(BaseLogger):
-    """Create a dummy logger which just calls ``print``. This is helpful when dubugging output issues. 
+    """Create a dummy logger which just calls `print`. This is helpful when dubugging output issues. 
     """
     
     def __init__(self, *args, **kwargs):
@@ -49,17 +49,17 @@ class ColoredLogger(BaseLogger):
         s: str, 
         type: Optional[str] = None,
         *args, **kwargs):
-        """Print the ``msg`` to stdout with ansi colors. 
+        """Print the `msg` to stdout with ansi colors. 
         
         :param s: the message to print. 
         :param type: the type of the message, which also controls the color:
         
-            * ``None``: no color
-            * ``"Error"``: red
-            * ``"LOG"``: blue
-            * ``"SUCCESS"``: green
-            * ``"WARNING"``: yellow
-            * ``"RESET"``: reset all the colors
+            * `None`: no color
+            * `"Error"`: red
+            * `"LOG"`: blue
+            * `"SUCCESS"`: green
+            * `"WARNING"`: yellow
+            * `"RESET"`: reset all the colors
         """
         if type:
             type = type.upper()
@@ -130,14 +130,14 @@ class TensorboardLogger(BaseLogger):
         :param s: the message to print. 
         :param type: the type of the message, which also controls the color:
         
-            * ``None``: no color
-            * ``"Error"``: red
-            * ``"LOG"``: blue
-            * ``"SUCCESS"``: green
-            * ``"WARNING"``: yellow
-            * ``"RESET"``: reset all the colors
-        :param terminal: whether s should be printed to terminal, masks ``self.terminal``.
-        :param txt: whether s should be printed to txt file, masks ``self.txt``.
+            * `None`: no color
+            * `"Error"`: red
+            * `"LOG"`: blue
+            * `"SUCCESS"`: green
+            * `"WARNING"`: yellow
+            * `"RESET"`: reset all the colors
+        :param terminal: whether s should be printed to terminal, masks `self.terminal`.
+        :param txt: whether s should be printed to txt file, masks `self.txt`.
         """
         
         if level < self.warning_level:
@@ -256,7 +256,7 @@ class TensorboardLogger(BaseLogger):
         
         :param name: the identifier of the object.
         :param object: the object to save.
-        :param path: the path to save the object, will be created if not exist; will be set to ``self.log_path`` if None.
+        :param path: the path to save the object, will be created if not exist; will be set to `self.log_path` if None.
         """
 
         if path is None:
@@ -274,7 +274,7 @@ class TensorboardLogger(BaseLogger):
         """Restore a previously saved Python object.
         
         :param name: the identifier of the object.
-        :param path: the path to load the object, will be set to ``self.log_path`` if None.
+        :param path: the path to load the object, will be set to `self.log_path` if None.
         """
 
         if path is None:

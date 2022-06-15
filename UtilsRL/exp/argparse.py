@@ -12,9 +12,12 @@ from UtilsRL.logger import ColoredLogger
 
 # argparse callbacks
 argparse_callbacks = {}
+
 def register_argparse_callback(key, func):
-    """
-    Register a callback function which is specific to UtilsRL use. 
+    """Register a callback function which is specific for UtilsRL to use. 
+    
+    :param str key: the name of argument which is used to enable the feature.
+    :param func: the function which implements the feature. 
     """
     argparse_callbacks[key] = func
     
@@ -45,18 +48,17 @@ def parse_cmd_args(convert=True):
     return args
     
 def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpace, Dict[str, Any]]:
-    """
-    Parse args from json file, yaml, python file or plain old dict. 
-    Command-line argumnets will be parsed as well, and will be used to overwrite
+    """Parse args from json file, yaml, python file or plain old dict. \
+        Command-line argumnets will be parsed as well, and will be used to overwrite \
         the init arguments. 
     
-    Args:
-        args: can be string or python module object. If it is string, it will be 
-            interpreted as the path to the config file. If it is a python module, 
+    :param path: can be `str` or python `module` object. If it is a string, it will be \
+            interpreted as the path to the config file. If it is a python module, \
             then its attributes will be extracted to from an argument dict. 
-        convert: whether to convert the final argument dict to a Namespace class, 
-            which brings lots of convenience. Default to True. 
+    :param convert: whether to convert the final argument dict to :class:`~UtilsRL.misc.NameSpace`, \
+            which brings lots of convenience. Default to `True`. 
     """
+    
     cmd_args = parse_cmd_args(convert=convert)
     
     # parse args from config files or modules

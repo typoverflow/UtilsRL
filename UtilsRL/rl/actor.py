@@ -11,22 +11,51 @@ from torch.distributions import Categorical, Normal
 from abc import ABC, abstractmethod
 
 class BaseActor(nn.Module):
+    """BaseActor interface. 
+    
+    All actors should implement `forward`, `sample` and `evaluate`. 
+    """
     def __init__(self):
         super().__init__()
         
     @abstractmethod
     def forward(self, state: torch.Tensor, *args, **kwargs):
+        """Forward pass of the actor. 
+        
+        :param state: state / obs of the environment. 
+        """
         raise NotImplementedError
     
     @abstractmethod
     def sample(self, state: torch.Tensor, *args, **kwargs):
+        """Sampling procedure of the actor.
+        
+        :param state: state / obs of the environment.
+        """
         raise NotImplementedError
     
     @abstractmethod
     def evaluate(self, state, action, *args, **kwargs):
+        """Evaluate the log_prob of the given `action`. 
+        
+        :param state: state / obs of the environment.
+        :param action: action to evaluate. 
+        """
         raise NotImplementedError
 
 class DeterministicActor(BaseActor):
+    """Actor which outputs a deterministic action for a given state. 
+    
+    Note that the output action is not bounded within [-1, 1].
+
+    :param backend: feature extraction backend of the actor. 
+    :param input_dim: input dimension of the actor. When using `backend`, this should match the output dimension of `backend`. 
+    :param output_dim: output dimension of the actor. 
+    :param device: device of the actor. 
+    :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
+    :param linear_layer: linear type of the hidden layers. 
+    """
+    
     def __init__(self, 
                  backend: nn.Module, 
                  input_dim: int, 
@@ -54,16 +83,35 @@ class DeterministicActor(BaseActor):
         )
     
     def forward(self, input: torch.Tensor):
+        """Forward pass of the actor. 
+        
+        :param input: state / obs of the environment. 
+        """
         return self.output_layer(self.backend(input))
     
     def sample(self, input: torch.Tensor):
+        """Sampling process of the actor. However, deterministic actor directly take the output \
+            as actions, and there is no further operations. 
+
+        :param input: state / obs of the environent. 
+        """
         return self(input)
     
     def evaluate(self, state: torch.Tensor, action: torch.Tensor):
+        """Determinisitic actors do not support evaluation. This will raise an error.
+
+        :param state: state / obs of the environment.
+        :param action: action to evaluate.
+        """
         raise NotImplementedError("Evaluation shouldn't be called for SquashedDeterministicActor.")
         
         
 class SquashedDeterministicActor(DeterministicActor):
+    """A deterministic actor whose output is squashed into [-1, 1] using `Tanh`. 
+    
+    Parameters are kept the same as :class:`~UtilsRL.rl.actor.DeterministicActor`.
+    """
+    
     def __init__(self,
                  backend: nn.Module, 
                  input_dim: int, 
@@ -76,11 +124,20 @@ class SquashedDeterministicActor(DeterministicActor):
         self.actor_type = "SqushedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
+        """Sampling process of actor. Note that output is squashed into [-1, 1] with `Tanh`.
+        
+        :param input: state / obs of the environent. 
+        """
         action_prev_tanh = super().forward(input)
         return torch.tanh(action_prev_tanh)
             
 
 class ClippedDeterministicActor(DeterministicActor):
+    """A deterministic actor whose output is hard-clipped into [-1, 1]. 
+    
+    Parameters are kept the same as :class:`~UtilsRL.rl.actor.DeterministicActor`.
+    """
+    
     def __init__(self, 
                  backend: nn.Module, 
                  input_dim: int, 
@@ -93,11 +150,30 @@ class ClippedDeterministicActor(DeterministicActor):
         self.actor_type = "ClippedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
+        """Sampling process of actor. Note that output is hard-clipped into [-1, 1].
+
+        :param input: state / obs of the environent. 
+        """
         action = super().forward(input)
         return torch.clip(action, min=-1, max=1)
     
     
 class GaussianActor(BaseActor):
+    """Actor which samples from a gaussian distribution whose mean and std are predicted by networks. 
+    
+    :param backend: feature extraction backend of the actor. 
+    :param input_dim: input dimension of the actor. When using `backend`, this should match the output dimension of `backend`. 
+    :param output_dim: output dimension of the actor. 
+    :param device: device of the actor. 
+    :param reparameterize: whether to use reparameterization trick when sampling. 
+    :param conditioned_logstd: whether condition the logstd on inputs. 
+    :param fix_logstd: if not `None`, actor will fix the logstd of the sampling distribution. 
+    :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
+    :param linear_layer: linear type of the hidden layers. 
+    :param logstd_min: minimum value of the logstd, will be used to clip the logstd value. 
+    :param logstd_max: maximum value of the logstd, will be used to clip the logstd value.
+    """
+    
     def __init__(self, 
                  backend: nn.Module, 
                  input_dim: int, 
@@ -144,6 +220,13 @@ class GaussianActor(BaseActor):
         self.logstd_max = nn.Parameter(torch.tensor(logstd_max, dtype=torch.float), requires_grad=False)
         
     def forward(self, input: torch.Tensor):
+        """Forward pass of the actor, will predict mean and logstd of the distribution for sampling. 
+        
+        Note that if ``fix_logstd`` is not `None`, the logstd will be fixed values; otherwise, if `conditioned_logstd==True`, logstd \
+            will conditione on input; if not, logstd are shared across all inputs. 
+
+        :param input: state / obs of the environent.
+        """
         out = self.output_layer(self.backend(input))
         if self._logstd_is_layer:
             mean, logstd = torch.split(out, self.output_dim // 2, dim=-1)
@@ -154,6 +237,12 @@ class GaussianActor(BaseActor):
         return mean, logstd
     
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd: bool=False):
+        """Sampling process of the actor. 
+        
+        :param input: state / obs of the environent.
+        :param deterministic: whether to use deterministic sampling. If `True`, mean will be returned as action. 
+        :param return_mean_logstd: whether to return mean and logstd of the sampling distribution. If `True`, they will be included in `info` dict
+        """
         mean, logstd = self(input)
         dist = Normal(mean, logstd.exp())
         if deterministic:
@@ -169,12 +258,22 @@ class GaussianActor(BaseActor):
         return action, logprob, info
     
     def evaluate(self, state: torch.Tensor, action: torch.Tensor):
+        """Evaluate the action given the state. Note that entropy will also be returned. 
+
+        :param state: state of the environment.
+        :param action: action to be evaluated.
+        """
         mean, logstd = self(state)
         dist = Normal(mean, logstd.exp())
         return dist.log_prob(action).sum(-1, keepdim=True), dist.entropy().sum(-1, keepdim=True)
 
 
 class SquashedGaussianActor(GaussianActor):
+    """Actor which samples from a gaussian distribution whose mean and std are predicted by networks. The output action will be \
+        squashed into [-1, 1] with `Tanh`.
+    
+    Parameters are kept the same as :class:`~UtilsRL.rl.actor.GaussianActor`
+    """
     def __init__(self, 
                  backend: nn.Module, 
                  input_dim: int, 
@@ -192,6 +291,8 @@ class SquashedGaussianActor(GaussianActor):
         self.actor_type = "SquashedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
+        """After sampling from gaussian distributions, samples will be squashed into [-1, 1] with `Tanh`."""
+        
         mean, logstd = self.forward(input)
         dist = TanhNormal(mean, logstd.exp())
         if deterministic:
@@ -207,12 +308,19 @@ class SquashedGaussianActor(GaussianActor):
         return action, logprob, info
     
     def evaluate(self, state: torch.Tensor, action: torch.Tensor):
+        """Evaluate the action given the state. Log-probability will be corrected according to `SAC` paper.
+        """
         mean, logstd = self(state)
         dist = TanhNormal(mean, logstd.exp())
         return dist.log_prob(action).sum(-1, keepdim=True), dist.entropy().sum(-1, keepdim=True)
     
     
 class ClippedGaussianActor(GaussianActor):
+    """Actor which samples from a gaussian distribution whose mean and std are predicted by networks. The output action will be \
+        hard-clippped into [-1, 1].
+    
+    Parameters are kept the same as :class:`~UtilsRL.rl.actor.GaussianActor`
+    """
     def __init__(self, 
                  backend: nn.Module, 
                  input_dim: int, 
@@ -234,6 +342,15 @@ class ClippedGaussianActor(GaussianActor):
         return torch.clip(action, min=-1, max=1), logprob, info
 
 class CategoricalActor(BaseActor):
+    """Actor which samples from a categorical distribution whose logits are predicted by networks. 
+    
+    :param backend: feature extraction backend of the actor. 
+    :param input_dim: input dimension of the actor. When using `backend`, this should match the output dimension of `backend`. 
+    :param output_dim: output dimension of the actor. 
+    :param device: device of the actor. 
+    :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
+    :param linear_layer: linear type of the hidden layers. 
+    """
     def __init__(self, 
                  backend: nn.Module, 
                  input_dim: int, 
