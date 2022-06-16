@@ -37,7 +37,6 @@ If no error occurs, you have installed UtilsRL successfully.
    :maxdepth: 2
    :caption: Tutorials:
 
-   tutorials/exp_manage
    tutorials/minimal_ppo
    tutorials/benchmarks
 

@@ -9,7 +9,7 @@ RL Actors
 ---------
 
 `Actors` are essentially the `agent` itself, they take observations as input, and output corresponding actions. We follow `tianshou`'s design of decoupling output head and \
-feature extraction backend, so that we can reduce code redundancy and increase the flexibility of when constructing an agent. 
+feature extraction backend, so that we can reduce code redundancy and increase flexibility of constructing an agent. 
 
 Basically all types of actors are composed of three parts: 
 
@@ -72,5 +72,49 @@ in discrete control problems, `CategoricalActors` are preferred when action spac
 .. autoclass:: UtilsRL.rl.actor.CategoricalActor
     :members:
     :show-inheritance:
+
+
+RL Critics
+----------
+
+For now there is only one critic in UtilsRL, which is a vanilla implementation that takes observation (or observation-action pair) as input \
+and outputs value. It is composed by two consecutive modules: ``feature extraction layers -- output layers``, so as to benefit from the \
+decoupling structure. 
+
+.. autoclass:: UtilsRL.rl.critic.SingleCritic
+    :members:
+    :show-inheritance:
+
+
+Normalizers
+-----------
+
+`Normalizers` are used to transform raw tensors into a form suitable for neural networks to process. \
+In RL, we found normalizers are extremely important for on-policy algorithms and offline algorithms. 
+
+For all normalizers we subclasses them from ``torch.nn.Module``, so that their states and parameters can be saved & loaded \
+with torch utils. Also, you can use ``__call__`` to transform the data. 
+
+
+.. autoclass:: UtilsRL.rl.normalizer.BaseNormalizer
+    :members:
+    :show-inheritance:
+
+.. autoclass:: UtilsRL.rl.normalizer.DummyNormalizer
+    :members:
+    :show-inheritance:
+
+.. autoclass:: UtilsRL.rl.normalizer.RunningNormalizer
+    :members:
+    :show-inheritance:
+
+.. autoclass:: UtilsRL.rl.normalizer.StaticNormalizer
+    :members:
+    :show-inheritance:
+
+.. autoclass:: UtilsRL.rl.normalizer.MinMaxNormalizer
+    :members:
+    :show-inheritance:
+
 
 

@@ -6,7 +6,7 @@ Among them, :class:`~UtilsRL.logger.TensorboardLogger` is a rather shallow capsu
 
 The loggers all inherits from ``UtilsRL.logger.BaseLogger`` and are required to implememt ``log_str``. We plan to support for comparatively niche loggers, such as `Aim <https://github.com/aimhubio/aim>`_ in future versions of UtilsRL.
 
-In this page we mainly present the api docs of each logger, and we refer the readers to check their usage in :ref:`Use Loggers`.
+In this page we mainly present the api docs of each logger, and we refer the readers to check their usage in :ref:`Set up the logger and arguments`.
 
 UtilsRL.logger.DummyLogger
 ~~~~~~~~~~~~~~~~~~~~~~~~~~

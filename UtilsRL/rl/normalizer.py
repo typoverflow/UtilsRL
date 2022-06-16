@@ -36,10 +36,19 @@ class RunningMeanStd(object):
 class BaseNormalizer(ABC):
     @abstractmethod
     def transform(self, x: torch.Tensor, inverse: bool = False):
+        """Transform the input data. 
+
+        :param x: input data. 
+        :param inverse: if True, inverse the transformation defined by the normalizer.
+        """
         raise NotImplementedError
     
     @abstractmethod
     def update(self, x: torch.Tensor):
+        """Use the input data to update the normalizer. 
+
+        :param x: data for updating the normalizer.
+        """
         raise NotImplementedError
     
     def forward(self, *args, **kwargs):
@@ -47,6 +56,8 @@ class BaseNormalizer(ABC):
 
 
 class DummyNormalizer(BaseNormalizer, nn.Module):
+    """A dummy normalizer for debug use. """
+    
     def __init__(self, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
@@ -59,6 +70,12 @@ class DummyNormalizer(BaseNormalizer, nn.Module):
       
 
 class RunningNormalizer(BaseNormalizer, nn.Module):
+    """A normalizer which normalizes data by data = (data - running_mean) / running_std. 
+    
+    :param eps: small number to avoid division by zero.
+    :param kwargs: if a key `shape` is present in kwargs, then the value will be used to initialize the shape of \
+        running_mean and running_std. Otherwise, the shape will be inferred during the first call of ``transform``.
+    """
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
@@ -80,6 +97,11 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         self._initialized.data = torch.tensor(True)
         
     def transform(self, x: torch.Tensor, inverse: bool = False):
+        """Transform the input data by data = (data - running_mean) / running_std. 
+
+        :param x: input data, note that **all dims but for the dim 0** are normalized. 
+        :param inverse: if True, inverse the transformation defined by the normalizer.
+        """
         if not self._initialized:
             self._initialize(x.shape[1:])
         if inverse:
@@ -87,6 +109,10 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         return (x-self.mean) / torch.sqrt(self.var + self.eps)
 
     def update(self, data: torch.Tensor):
+        """Update the normalizer with new data. The update rules is defined by common implementation of running mean/std. 
+        
+        :param data: data for updating the normalizer, note that it is deemed to be batched along dim 0. 
+        """
         if not self._initialized:
             self._initialize(data.shape[1:])
         num_shape = len(data.shape)
@@ -115,6 +141,12 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         
         
 class StaticNormalizer(BaseNormalizer, nn.Module):
+    """A normalizer which normalizes data by data = (data - static_mean) / static_std. 
+    
+    :param eps: small number to avoid division by zero.
+    :param kwargs: if the key `mean` and ("var" or "std") are present in kwargs, then their value will be used to initialize the static \
+        mean and the static std. If not, please call ``update`` before the first call to ``transform``, otherwise an error will be raised during ``transform``. 
+    """
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
@@ -156,6 +188,11 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
         self._initialized.data = torch.tensor(True).to(mean.device)
         
     def transform(self, x: torch.Tensor, inverse: bool=False):
+        """Transform the input data by data = (data - static_mean) / static_std. 
+
+        :param x: input data, note that **all dims but for the dim 0** are normalized. 
+        :param inverse: if True, inverse the transformation defined by the normalizer.
+        """
         if not self._initialized:
             raise ValueError("Static Normalizers must be initialized before transforming.")
         if inverse:
@@ -163,6 +200,10 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
         return (x-self.mean) / (self.std)
     
     def update(self, data: torch.Tensor):
+        """Update the normalizer with static mean and static std from the new data. 
+        
+        :param data: data for updating the normalizer, note that it is deemed to be batched along dim 0. 
+        """
         num_shape = len(data.shape)
         batch_mean = torch.mean(data, dim=0)
         batch_std = torch.std(data, dim=0)
@@ -171,6 +212,12 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
            
         
 class MinMaxNormalizer(BaseNormalizer, nn.Module):
+    """A normalizer which normalizes data by data = (data - min) / (max - min). 
+    
+    :param eps: small number to avoid division by zero.
+    :param kwargs: if the key `min` and `max` are present in kwargs, then their value will be used to initialize the min and max. \
+        If not, please call ``update`` before the first call to ``transform``, otherwise an error will be raised during ``transform``. 
+    """
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
@@ -197,6 +244,11 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
         self._initialized.data = torch.tensor(True).to(min.device)
         
     def transform(self, x: torch.Tensor, inverse: bool=False):
+        """Transform the input data by data = (data - min) / (max - min). 
+
+        :param x: input data, note that **all dims but for the dim 0** are normalized. 
+        :param inverse: if True, inverse the transformation defined by the normalizer.
+        """
         if not self._initialized:
             raise ValueError("MinMax Normalizers must be initialized before transforming.")
         if inverse:
@@ -204,6 +256,10 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
         return (x-self.min) / (self.max - self.min+1e-6)
     
     def update(self, data: torch.Tensor):
+        """Update the normalizer with min and max from the new data. 
+        
+        :param data: data for updating the normalizer, note that it is deemed to be batched along dim 0. 
+        """
         num_shape = len(data.shape)
         batch_min = torch.min(data, dim=0)
         batch_max = torch.max(data, dim=0)

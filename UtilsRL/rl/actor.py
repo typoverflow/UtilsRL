@@ -53,7 +53,7 @@ class DeterministicActor(BaseActor):
     :param output_dim: output dimension of the actor. 
     :param device: device of the actor. 
     :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
-    :param linear_layer: linear type of the hidden layers. 
+    :param linear_layer: linear type of the output layers. 
     """
     
     def __init__(self, 
@@ -169,7 +169,7 @@ class GaussianActor(BaseActor):
     :param conditioned_logstd: whether condition the logstd on inputs. 
     :param fix_logstd: if not `None`, actor will fix the logstd of the sampling distribution. 
     :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
-    :param linear_layer: linear type of the hidden layers. 
+    :param linear_layer: linear type of the output layers. 
     :param logstd_min: minimum value of the logstd, will be used to clip the logstd value. 
     :param logstd_max: maximum value of the logstd, will be used to clip the logstd value.
     """
@@ -291,7 +291,12 @@ class SquashedGaussianActor(GaussianActor):
         self.actor_type = "SquashedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
-        """After sampling from gaussian distributions, samples will be squashed into [-1, 1] with `Tanh`."""
+        """After sampling from gaussian distributions, samples will be squashed into [-1, 1] with `Tanh`.
+        
+        :param input: state / obs of the environent.
+        :param deterministic: whether to use deterministic sampling. If `True`, `Tanh(mean)` will be returned as action.
+        :param return_mean_logstd: whether to return mean and logstd of the sampling distribution. If `True`, they will be included in `info` dict. 
+        """
         
         mean, logstd = self.forward(input)
         dist = TanhNormal(mean, logstd.exp())
@@ -349,7 +354,7 @@ class CategoricalActor(BaseActor):
     :param output_dim: output dimension of the actor. 
     :param device: device of the actor. 
     :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
-    :param linear_layer: linear type of the hidden layers. 
+    :param linear_layer: linear type of the output layers. 
     """
     def __init__(self, 
                  backend: nn.Module, 
@@ -381,8 +386,14 @@ class CategoricalActor(BaseActor):
         out = self.output_layer(self.backend(input))
         return torch.softmax(out, dim=-1)
     
-    def sample(self, state: torch.Tensor, deterministic: bool=False, return_probs: bool=False):
-        probs = self.forward(state)
+    def sample(self, input: torch.Tensor, deterministic: bool=False, return_probs: bool=False):
+        """Sampling from a categorical distribution where probs are predicted by networks. 
+
+        :param input: state / obs of the environent.
+        :param deterministic: whether to use deterministic sampling. If `True`, `argmax` will be returned as action.
+        :param return_probs: whether to return probs of the sampling distribution. If `True`, they will be included in `info` dict.
+        """
+        probs = self.forward(input)
         if deterministic: 
             action = torch.argmax(probs, dim=-1, keepdim=True)
             logprob = torch.log(torch.max(probs, dim=-1, keepdim=True)[0] + 1e-6)
@@ -396,6 +407,11 @@ class CategoricalActor(BaseActor):
         return action, logprob, info
     
     def evaluate(self, state: torch.Tensor, action: torch.Tensor):
+        """Evaluate the action given the state, will return log-probability of the action and entropy of the distribution.
+
+        :param state: state of the environent.
+        :param action: action to be evaluated.
+        """
         if len(action.shape) == 2:
             action = action.view(-1)
         probs = self.forward(state)
