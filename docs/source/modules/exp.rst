@@ -95,3 +95,10 @@ You can make a snapshot of the code by passing ``--UtilsRL.snapshot <name>`` to 
 UtilsRL will commit all the changes to a new branch whose name is ``<name>``, and then return to the original branch. After creating the branch, its name will be added to ``args``. \
 You can find its name by ``args.UtilsRL.snapshot_branch``, and git diff that branch later to checkout the changes you made.
 
+Custom Float Precision
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can change the default float precision of torch by passing ``--UtilsRL.ftype <ftype>`` to the program to set custom float precision. \
+Valid values include: ``float16``, ``float32``, ``float``, ``float64`` and ``double``. This callback function will set torch default float precision and \
+populate the arguments. There is no way, however, to change the default precision of ``numpy`` from ``double`` to ``float``, and it requires manual \
+handling for ``numpy``. 
