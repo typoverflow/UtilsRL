@@ -17,6 +17,8 @@ def set_precision(args: Optional[Union[torch.dtype, str, int]]):
             prec = "float64"
         elif args == "float": 
             prec = "float32"
+        else:
+            prec = args
     elif args in {torch.float16, torch.float32, torch.float64}:
         if args == torch.float16: prec = "float16"
         elif args == torch.float32: prec = "float32"
@@ -37,6 +39,8 @@ def set_precision(args: Optional[Union[torch.dtype, str, int]]):
         "float64": [np.float64, torch.float64]
     }.get(prec)
     torch.set_default_dtype(torch_ftype)
+    if prec == "float64":
+        torch.set_default_tensor_type(torch.DoubleTensor)
     
     return {
         "UtilsRL.np_ftype": np_ftype, 

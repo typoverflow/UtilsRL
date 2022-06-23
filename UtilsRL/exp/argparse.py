@@ -114,11 +114,11 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
                 break
         else:
             ret = argparse_callbacks[key](_args)
-            file_args = update_args(file_args, ret)
+            file_args = update_args(file_args, ret, eval=False)
     
     return file_args
     
-def update_args(args, new_args: Optional[Union[dict, list]] = None):
+def update_args(args, new_args: Optional[Union[dict, list]] = None, eval=True):
     """Update the arguments with a flat dict or list of key-value pairs.
 
     Args:
@@ -143,7 +143,7 @@ def update_args(args, new_args: Optional[Union[dict, list]] = None):
             if k not in _final:
                 _final[k] = {}
             _final = _final[k]
-        _final[_key[-1]] = safe_eval(value)
+        _final[_key[-1]] = safe_eval(value) if eval else value
     return args
             
     

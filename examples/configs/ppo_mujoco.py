@@ -1,3 +1,5 @@
+from UtilsRL.misc.namespace import NameSpace
+
 device = 0
 actor_lr = 3e-4
 critic_lr = 3e-4
@@ -23,6 +25,9 @@ max_traj_length = 1000
 
 eval_interval = 10
 eval_num_traj = 10
+
+class UtilsRL(NameSpace):
+    ftype = "float64"
 
 log_path = "./tests/log"
 name = "debug"
