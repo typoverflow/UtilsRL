@@ -198,10 +198,10 @@ class GaussianActor(BaseActor):
         
         if fix_logstd is not None:
             self._logstd_is_layer = False
-            self.logstd = nn.Parameter(torch.tensor(fix_logstd, dtype=torch.float), requires_grad=False)
+            self.logstd = nn.Parameter(torch.tensor(fix_logstd), requires_grad=False)
         elif not conditioned_logstd:
             self._logstd_is_layer = False
-            self.logstd = nn.Parameter(-0.5 * torch.ones([self.output_dim], dtype=torch.float), requires_grad=True)
+            self.logstd = nn.Parameter(-0.5 * torch.ones([self.output_dim]), requires_grad=True)
         else:
             self._logstd_is_layer = True
             self.output_dim = output_dim = 2*output_dim
@@ -216,8 +216,8 @@ class GaussianActor(BaseActor):
             linear_layer=linear_layer
         )
         
-        self.logstd_min = nn.Parameter(torch.tensor(logstd_min, dtype=torch.float), requires_grad=False)
-        self.logstd_max = nn.Parameter(torch.tensor(logstd_max, dtype=torch.float), requires_grad=False)
+        self.logstd_min = nn.Parameter(torch.tensor(logstd_min), requires_grad=False)
+        self.logstd_max = nn.Parameter(torch.tensor(logstd_max), requires_grad=False)
         
     def forward(self, input: torch.Tensor):
         """Forward pass of the actor, will predict mean and logstd of the distribution for sampling. 

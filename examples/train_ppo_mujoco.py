@@ -24,12 +24,13 @@ logger = TensorboardLogger(args.log_path, args.name)
 setup(args, logger, args.device)
 
 # 2. Add environment specs to arguments
-task = "Hopper-v3"
+task = "HalfCheetah-v3"
 env = gym.make(task)
 args["obs_space"] = env.observation_space
 args["action_space"] = env.action_space
 args["obs_shape"] = env.observation_space.shape[0]
 args["action_shape"] = env.action_space.shape[0]
+np_ftype, torch_ftype = args.UtilsRL.np_ftype, args.UtilsRL.torch_ftype
 
 # 3. Define structures of networks
 actor_backend = MLP(args.obs_shape, 0, args.actor_hidden_dims, activation=nn.Tanh, device=args.device)
@@ -58,11 +59,11 @@ obs_normalizer = RunningNormalizer(shape=args.obs_shape).to(args.device)
 def update(data_batch):
     obs_batch, action_batch, logprob_batch, advantage_batch, return_batch = \
         itemgetter("obs", "action", "logprob", "advantage", "return")(data_batch)
-    obs_batch = torch.from_numpy(obs_batch).float().to(args.device)
-    action_batch = torch.from_numpy(action_batch).float().to(args.device)
-    logprob_batch = torch.from_numpy(logprob_batch).float().to(args.device)
-    advantage_batch = torch.from_numpy(advantage_batch).float().to(args.device)
-    return_batch = torch.from_numpy(return_batch).float().to(args.device)
+    obs_batch = torch.from_numpy(obs_batch).to(torch_ftype).to(args.device)
+    action_batch = torch.from_numpy(action_batch).to(torch_ftype).to(args.device)
+    logprob_batch = torch.from_numpy(logprob_batch).to(torch_ftype).to(args.device)
+    advantage_batch = torch.from_numpy(advantage_batch).to(torch_ftype).to(args.device)
+    return_batch = torch.from_numpy(return_batch).to(torch_ftype).to(args.device)
     
     # with torch.no_grad():
         # obs_batch = obs_normalizer.transform(obs_batch)
@@ -124,7 +125,7 @@ def update(data_batch):
 @torch.no_grad()
 def get_value(obs):
     if not isinstance(obs, torch.Tensor):
-        obs = torch.from_numpy(obs).float().to(args.device)
+        obs = torch.from_numpy(obs).to(torch_ftype).to(args.device)
     if len(obs.shape) == 1:
         obs = torch.unsqueeze(obs, 0)
     return torch.squeeze(critic1(obs)).detach().cpu().numpy()
@@ -133,7 +134,7 @@ def get_value(obs):
 @torch.no_grad()
 def get_action(obs, deterministic=False):
     if not isinstance(obs, torch.Tensor):
-        obs = torch.from_numpy(obs).float().to(args.device)
+        obs = torch.from_numpy(obs).to(torch_ftype).to(args.device)
     if len(obs.shape) == 1:
         obs = torch.unsqueeze(obs, 0)
     action, logprob, _ = actor.sample(obs, deterministic=deterministic, return_mean_logstd=False)
@@ -152,11 +153,11 @@ def compute_gae(rewards, values, last_v, gamma=0.99, lam=0.97):
     return gae, ret
     
 buffer = TransitionReplayPool(args.obs_space, args.action_space, args.buffer_size, extra_fields={
-    "advantage": {"shape": (1, ), "dtype": "float"}, 
-    "logprob": {"shape": (1, ), "dtype": "float"}, 
-    "return": {"shape": (1, ), "dtype": "float"}, 
-    "value": {"shape": (1, ), "dtype": "float"}
-})
+    "advantage": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
+    "logprob": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
+    "return": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
+    "value": {"shape": (1, ), "dtype": args.UtilsRL.ftype}
+}, ftype=args.UtilsRL.ftype)
 
 tot_env_step = 0
 # traj_length = traj_return = 0
@@ -167,7 +168,7 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
     sample_ph = buffer.get_placeholder(args.sample_per_epoch)
     traj_length = traj_return = traj_start = 0
     for env_step in range(args.sample_per_epoch):
-        obs_norm = obs_normalizer.transform(torch.from_numpy(obs).float().to(args.device)).cpu().numpy()
+        obs_norm = obs_normalizer.transform(torch.from_numpy(obs).to(torch_ftype).to(args.device)).cpu().numpy()
         action, logprob = get_action(obs_norm)
         next_obs, reward, done, _ = env.step(action)
         # traj_return += reward
@@ -206,13 +207,13 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
         obs = next_obs
     
     if i_epoch < args.warmup_epoch:
-        obs_torch = torch.from_numpy(sample_ph["obs"]).float().to(args.device)
+        obs_torch = torch.from_numpy(sample_ph["obs"]).to(torch_ftype).to(args.device)
         obs_normalizer.update(obs_torch)
         continue
     # sample_ph["obs"] = obs_normalizer.transform(obs_torch).cpu().numpy()
     buffer.add_samples(sample_ph)
     data_batch = buffer.random_batch(0)
-    data_batch["obs"] = obs_normalizer.transform(torch.from_numpy(data_batch["obs"]).float().to(args.device)).cpu().numpy()
+    data_batch["obs"] = obs_normalizer.transform(torch.from_numpy(data_batch["obs"]).to(torch_ftype).to(args.device)).cpu().numpy()
     train_loss = update(data_batch)
 
     if i_epoch % args.eval_interval == 0:
@@ -222,7 +223,7 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
             traj_return = traj_length = 0
             state, done = env.reset(), False
             for step in range(args.max_traj_length):
-                state_norm = obs_normalizer.transform(torch.from_numpy(state).float().to(args.device)).cpu().numpy()
+                state_norm = obs_normalizer.transform(torch.from_numpy(state).to(torch_ftype).to(args.device)).cpu().numpy()
                 action, _= get_action(state_norm, deterministic=True)
                 state, reward, done, _ = env.step(action)
                 traj_return += reward
@@ -236,7 +237,7 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
             "eval/traj_length": np.mean(traj_lengths)
         })
         
-    obs_torch = torch.from_numpy(sample_ph["obs"]).float().to(args.device)
+    obs_torch = torch.from_numpy(sample_ph["obs"]).to(torch_ftype).to(args.device)
     obs_normalizer.update(obs_torch)  
      
     for k, v in train_loss.items():

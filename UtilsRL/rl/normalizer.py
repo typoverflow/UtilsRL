@@ -8,8 +8,8 @@ import numpy as np
 class RunningMeanStd(object):
     def __init__(self, epsion: float=1e-4, shape=(), device=Union[str, int, torch.device]):
         super().__init__()
-        self.mean = torch.zeros(shape, dtype=torch.float32, device=device, requires_grad=False)
-        self.var = torch.ones(shape, dtype=torch.float32, device=device, requires_grad=False)
+        self.mean = torch.zeros(shape, device=device, requires_grad=False)
+        self.var = torch.ones(shape, device=device, requires_grad=False)
         self.count = epsion
         
     def update(self, data: torch.Tensor):
@@ -92,8 +92,8 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         if isinstance(shape, int):
             shape = [shape]
         
-        self.register_parameter("mean", nn.Parameter(torch.zeros(shape, dtype=torch.float32), requires_grad=False))
-        self.register_parameter("var", nn.Parameter(torch.ones(shape, dtype=torch.float32), requires_grad=False))
+        self.register_parameter("mean", nn.Parameter(torch.zeros(shape), requires_grad=False))
+        self.register_parameter("var", nn.Parameter(torch.ones(shape), requires_grad=False))
         self._initialized.data = torch.tensor(True)
         
     def transform(self, x: torch.Tensor, inverse: bool = False):

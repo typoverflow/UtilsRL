@@ -9,7 +9,7 @@ you on the basic usage of UtilsRL.
 1. Set up logger and arguments
 ------------------------------
 
-We placed all training configurations in `UtilsRL/examples/configs/ppo_mujoco.py`. \
+We placed all of the training configurations in `UtilsRL/examples/configs/ppo_mujoco.py`. \
 So simply parse the python configuration file with :func:`~UtilsRL.exp.parse_args` is enough.
 
 .. code-block:: python

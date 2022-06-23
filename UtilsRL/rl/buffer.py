@@ -92,30 +92,31 @@ class ReplayPool(ABC):
 
     
 class TransitionReplayPool(ReplayPool):
-    def __init__(self, observation_space, action_space, max_size, extra_fields={}, *args, **kwargs):
+    def __init__(self, observation_space, action_space, max_size, extra_fields={}, ftype=np.float32, *args, **kwargs):
         self._observation_space = observation_space
         self._action_space = action_space
+        self.ftype = ftype
         
         fields = {
             "obs": {
                 "shape": observation_space.shape, 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "action": {
                 "shape": action_space.shape, 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "next_obs": {
                 "shape": observation_space.shape, 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "reward": {
                 "shape": (1, ), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "done": {
                 "shape": (1, ), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
         }
         for k, v in extra_fields.items():
@@ -150,35 +151,36 @@ class TransitionReplayPool(ReplayPool):
         }
 
 class TrajectoryReplayPool(ReplayPool):
-    def __init__(self, observation_space, action_space, max_size, max_traj_len, extra_fields={}, *args, **kwargs):
+    def __init__(self, observation_space, action_space, max_size, max_traj_len, extra_fields={}, ftype=np.float32, *args, **kwargs):
         self._observation_space = observation_space
         self._action_space = action_space
         self.max_traj_len = max_traj_len
+        self.ftype = ftype
         
         fields = {
             "obs": {
                 "shape": tuple(self._observation_space.shape), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "action": {
                 "shape": tuple(self._action_space.shape), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "next_obs": {
                 "shape": tuple(self._observation_space.shape), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "reward": {
                 "shape": (1, ), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "done": {
                 "shape": (1, ), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
             "valid": {
                 "shape": (1, ), 
-                "dtype": "float32"
+                "dtype": ftype
             }, 
         }
         for k, v in extra_fields.items():
@@ -200,7 +202,7 @@ class TrajectoryReplayPool(ReplayPool):
                 return values[:, :max_len]
             else:
                 initializer = self.fields_attrs.get(name, self.fields_attrs["obs"]).get("initializer", np.zeros)
-                dtype = self.fields_attrs.get(name, self.fields_attrs["obs"]).get("dtype", "float32")
+                dtype = self.fields_attrs.get(name, self.fields_attrs["obs"]).get("dtype", self.ftype)
                 padding = initializer((values.shape[0], max_len - values.shape[1], *values.shape[2:]), dtype=dtype)
                 return np.concatenate([samples, padding], axis=1)
             
@@ -241,7 +243,7 @@ class TrajectoryReplayPool(ReplayPool):
         for field in self.field_names:
             shapes = self.fields[field].shape
             shapes = (len(indices), shapes[-1])
-            data = np.zeros(shapes, dtype=np.float32)
+            data = np.zeros(shapes, self.ftype)
             for ind, item in enumerate(indices):
                 # print(self.fields[field].shape, data[ind].shape, self.fields[field][item[0], item[1]].shape, item)
                 data[ind] = self.fields[field][item[0], item[1]]

@@ -2,6 +2,7 @@ from UtilsRL.exp.argparse import parse_args, argparse_callbacks, register_argpar
 from UtilsRL.exp._seed import *
 from UtilsRL.exp._device import *
 from UtilsRL.exp.snapshot import make_snapshot
+from UtilsRL.exp.precision import set_precision
 
 from UtilsRL.logger import BaseLogger, DummyLogger, logger
 
@@ -62,3 +63,4 @@ def setup(args,
 
     
 register_argparse_callback("UtilsRL.snapshot", make_snapshot)
+register_argparse_callback("UtilsRL.ftype", set_precision)
