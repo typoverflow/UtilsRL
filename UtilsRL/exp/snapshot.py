@@ -1,8 +1,7 @@
 import os
 
 from UtilsRL.misc.namespace import NameSpace
-from UtilsRL.logger import ColoredLogger
-from UtilsRL.exp.argparse import argparse_callbacks, register_argparse_callback
+from UtilsRL.logger import logger
 
 from typing import Optional, Dict, Union
 
@@ -20,7 +19,7 @@ def make_snapshot(args: Optional[Union[Dict, NameSpace, str]]):
             git commit -m \"snapshot: {branch}\" >/dev/null 2>&1 && \
             git switch - >/dev/null 2>&1 && \
             git stash pop >/dev/null 2>&1 "
-    ColoredLogger().log_str(f"saving snapshot to {branch}")
+    logger.log_str(f"saving snapshot to {branch}")
     os.system(cmd)
     
     return {
