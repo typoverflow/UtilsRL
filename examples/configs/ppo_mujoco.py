@@ -1,6 +1,7 @@
 from UtilsRL.misc.namespace import NameSpace
 
 device = 0
+seed = 0
 actor_lr = 3e-4
 critic_lr = 3e-4
 actor_hidden_dims = [64, 64]
@@ -19,7 +20,7 @@ target_kl = 3
 
 buffer_size = 2048
 batch_size = 64
-max_epoch = 1000
+max_epoch = 3000
 sample_per_epoch = 2048
 max_traj_length = 1000
 

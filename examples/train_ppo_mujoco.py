@@ -72,7 +72,7 @@ def update(data_batch):
     
         
     actor_loss_value = critic_loss_value = entropy_loss_value = actor_logstd = actor_mean = tot_approx_kl = clip_fraction = 0
-    for actor_step in range(args.actor_repeat_step):
+    for actor_step, critic_step in range(args.repeat_step):
         new_logprob, new_entropy = actor.evaluate(obs_batch, action_batch)
         mean, logstd = actor.forward(obs_batch)
         ratio = torch.exp(new_logprob - logprob_batch)
@@ -96,7 +96,7 @@ def update(data_batch):
         actor_logstd += torch.abs(logstd.data).sum(-1).mean().detach().cpu().item()
         actor_mean += torch.abs(mean.data).sum(-1).mean().detach().cpu().item()
         
-    for critic_step in range(args.critic_repeat_step):
+    # for critic_step in range(args.critic_repeat_step):
         value = critic1(obs_batch)
         critic_loss = F.mse_loss(value, return_batch)
         critic_optim.zero_grad()
@@ -106,12 +106,12 @@ def update(data_batch):
         critic_loss_value += critic_loss.detach().cpu().item()
         
     ret_dict = {
-        "loss/critic": critic_loss/critic_step, 
         "misc/actor_update": actor_step, 
         "misc/critic_value": value.mean().detach().cpu().item()
     }
     if actor_step > 0:
         ret_dict.update({
+            "loss/critic": critic_loss/critic_step, 
             "loss/actor": actor_loss_value/actor_step,
             "loss/entropy": entropy_loss_value/actor_step,
             "misc/approx_kl": tot_approx_kl/actor_step,
