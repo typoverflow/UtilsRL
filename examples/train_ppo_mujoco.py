@@ -24,7 +24,7 @@ logger = TensorboardLogger(args.log_path, args.name)
 setup(args, logger, args.device)
 
 # 2. Add environment specs to arguments
-task = "HalfCheetah-v3"
+task = args.task
 env = gym.make(task)
 args["obs_space"] = env.observation_space
 args["action_space"] = env.action_space
@@ -72,7 +72,7 @@ def update(data_batch):
     
         
     actor_loss_value = critic_loss_value = entropy_loss_value = actor_logstd = actor_mean = tot_approx_kl = clip_fraction = 0
-    for actor_step in range(args.actor_repeat_step):
+    for actor_step in range(args.repeat_step):
         new_logprob, new_entropy = actor.evaluate(obs_batch, action_batch)
         mean, logstd = actor.forward(obs_batch)
         ratio = torch.exp(new_logprob - logprob_batch)
@@ -96,7 +96,7 @@ def update(data_batch):
         actor_logstd += torch.abs(logstd.data).sum(-1).mean().detach().cpu().item()
         actor_mean += torch.abs(mean.data).sum(-1).mean().detach().cpu().item()
         
-    for critic_step in range(args.critic_repeat_step):
+    for critic_step in range(args.repeat_step):
         value = critic1(obs_batch)
         critic_loss = F.mse_loss(value, return_batch)
         critic_optim.zero_grad()
@@ -106,9 +106,9 @@ def update(data_batch):
         critic_loss_value += critic_loss.detach().cpu().item()
         
     ret_dict = {
-        "loss/critic": critic_loss/critic_step, 
         "misc/actor_update": actor_step, 
-        "misc/critic_value": value.mean().detach().cpu().item()
+        "misc/critic_value": value.mean().detach().cpu().item(), 
+        "loss/critic": critic_loss/critic_step, 
     }
     if actor_step > 0:
         ret_dict.update({
@@ -121,7 +121,6 @@ def update(data_batch):
         })
     return ret_dict
 
-@profile
 @torch.no_grad()
 def get_value(obs):
     if not isinstance(obs, torch.Tensor):
@@ -130,7 +129,6 @@ def get_value(obs):
         obs = torch.unsqueeze(obs, 0)
     return torch.squeeze(critic1(obs)).detach().cpu().numpy()
 
-@profile
 @torch.no_grad()
 def get_action(obs, deterministic=False):
     if not isinstance(obs, torch.Tensor):
