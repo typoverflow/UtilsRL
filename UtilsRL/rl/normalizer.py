@@ -79,12 +79,12 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
-        self._initialized = nn.Parameter(torch.tensor(False), requires_grad=False)
+        self.register_buffer("_initialized", torch.tensor(False))
         self.eps = eps
         if "shape" in kwargs:
             self._initialize(kwargs["shape"])
         
-        self.count = nn.Parameter(torch.tensor(0), requires_grad=False)
+        self.register_buffer("count", torch.tensor(0))
         
     def _initialize(self, shape: Union[Sequence[int], int]):
         if shape is None:
@@ -92,8 +92,8 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         if isinstance(shape, int):
             shape = [shape]
         
-        self.register_parameter("mean", nn.Parameter(torch.zeros(shape), requires_grad=False))
-        self.register_parameter("var", nn.Parameter(torch.ones(shape), requires_grad=False))
+        self.register_buffer("mean", torch.zeros(shape))
+        self.register_buffer("var", torch.ones(shape))
         self._initialized.data = torch.tensor(True)
         
     def transform(self, x: torch.Tensor, inverse: bool = False):
@@ -150,7 +150,7 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
-        self._initialized = nn.Parameter(torch.tensor(False), requires_grad=False)
+        self.register_buffer("_initialized", torch.tensor(False))
         self.eps = eps
         if "mean" in kwargs:
             if "var" in kwargs:
@@ -173,17 +173,17 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
         if hasattr(self, "mean"):
             self.mean.data = mean.detach().clone()
         else:
-            self.register_parameter("mean", nn.Parameter(mean.detach().clone(), requires_grad=False))
+            self.register_buffer("mean", mean.detach().clone())
         if std is not None:
             if hasattr(self, "std"):
                 self.std.data = std.detach().clone()
             else:
-                self.register_parameter("std", nn.Parameter(std.detach().clone(), requires_grad=False))
+                self.register_buffer("std", std.detach().clone())
         elif var is not None:
             if hasattr(self, "std"):
                 self.std.data = torch.sqrt(var + self.eps).detach().clone()
             else:
-                self.register_parameter("std", nn.Parameter(torch.sqrt(var + self.eps).detach().clone(), requires_grad=False))
+                self.register_buffer("std", torch.sqrt(var + self.eps).detach().clone())
             
         self._initialized.data = torch.tensor(True).to(mean.device)
         
@@ -221,7 +221,7 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
     def __init__(self, eps=1e-6, **kwargs):
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
-        self._initialized = nn.Parameter(torch.tensor(False), requires_grad=False)
+        self.register_buffer("_initialized", torch.tensor(False))
         self.eps = eps
         if "min" in kwargs or "max" in kwargs:
             self._initialize(min=kwargs.get("min", None), max=kwargs.get("max", None))
