@@ -18,7 +18,7 @@ def select_device(id: Optional[Union[str, int, torch.device]] = None) -> torch.d
     if not torch.cuda.is_available() or id == "cpu":
         return torch.device("cpu")
     if id is None:
-        return torch.device("cuda:{}".format(select_free_cuda()))
+        return select_free_cuda()
     try:
         id = int(id)
     except ValueError:
