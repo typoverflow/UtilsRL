@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 from UtilsRL.math.distributions import TanhNormal
-from UtilsRL.rl.net import MLP
+from UtilsRL.net import MLP
 from torch.distributions import Categorical, Normal
 
 from abc import ABC, abstractmethod
@@ -418,7 +418,3 @@ class CategoricalActor(BaseActor):
         dist = Categorical(probs=probs)
         return dist.log_prob(action).unsqueeze(-1), dist.entropy().unsqueeze(-1)
             
-            
-
-        
-        
