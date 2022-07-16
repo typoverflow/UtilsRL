@@ -12,7 +12,7 @@ public:
         if (max_size <= 0) throw std::invalid_argument("`max_size` of the sum tree cannot be zero!");
         tree_depth = ceil(log2(this->max_size)); 
         tree_size = pow(2, tree_depth+1) - 1;
-        node_size = (tree_size+1) / 2;
+        node_size = pow(2, tree_depth) - 1;
         tree_body.assign(tree_size, 0);
     }
     SumTree& update(int idx, double new_value) {
@@ -38,6 +38,14 @@ public:
         tidx = _find_helper(target, 0, tvalue);
         return _get_idx(tidx);
     }
+    void show() {
+        for (int d=0; d<=tree_depth; ++d) {
+            printf("[Depth %d]: ", d);
+            for (int i=0; i<std::pow(2, d); ++i)
+                printf("%.3f  ", tree_body[i+std::pow(2, d)-1]);
+            printf(" \n");
+        }
+    }
 
 private:
     int max_size; 
@@ -56,7 +64,7 @@ private:
     inline double total() {return tree_body[0];}
 
     int _find_helper(double target, int tidx, double& value) {
-        if (_left(tidx) > tree_size) {
+        if (_left(tidx) >= tree_size) {
             value = tree_body[tidx];
             return tidx;
         }
@@ -66,4 +74,4 @@ private:
     }
 };
 
-#endif 
+#endif

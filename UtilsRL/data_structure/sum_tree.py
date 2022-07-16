@@ -4,7 +4,7 @@ import math
 class SumTree(object):
     def __init__ (self, max_size):
         self.max_size = max_size
-        self.tree_depth = math.ceil(math.log2(max_size + 1)) - 1
+        self.tree_depth = math.ceil(math.log2(max_size))
         self.tree_size = 2**(self.tree_depth+1) - 1
         self.curr = 0
         self.size = 0
