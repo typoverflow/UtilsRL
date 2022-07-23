@@ -46,7 +46,25 @@ public:
             printf(" \n");
         }
     }
+    std::vector<double> values() {
+        return values(0, this->valid_size);
+    }
 
+    std::vector<double> values(int start, int end) {
+        if (end > this->valid_size) end = this->valid_size;
+        printf("%d", this->curr);
+        auto vstart = this->tree_body.end() - (tree_size - node_size) + start;
+        auto vend = this->tree_body.end() - (tree_size - node_size) + end;
+        return std::vector<double>(vstart, vend);
+    }
+    std::vector<double> values(vector<int> indices) {
+        std::vector<double> v;
+        auto vstart = this->tree_body.end() - (tree_size - node_size);
+        for (auto i: indices) {
+            v.push_back(*(vstart+i));
+        }
+        return v;
+    }
 private:
     int max_size; 
     int tree_depth; 

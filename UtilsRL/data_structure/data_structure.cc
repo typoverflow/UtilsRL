@@ -1,4 +1,7 @@
 #include <pybind11/pybind11.h>
+#include <pybind11/stl.h>
+#include <pybind11/functional.h>
+#include <pybind11/chrono.h>
 #include <stdexcept>
 #include <vector>
 #include <cmath>
@@ -18,5 +21,8 @@ PYBIND11_MODULE(data_structure, m) {
         .def("add", &SumTree::add)
         .def("find", &SumTree::find, "Search the tree and return the index with given target value. ", 
             "target"_a, "scale"_a=true)
-        .def("show", &SumTree::show);
+        .def("show", &SumTree::show)
+        .def("values", static_cast<vector<double> (SumTree::*)()>(&SumTree::values))
+        .def("values", static_cast<vector<double> (SumTree::*)(int, int)>(&SumTree::values))
+        .def("values", static_cast<vector<double> (SumTree::*)(vector<int>)>(&SumTree::values));
 }
