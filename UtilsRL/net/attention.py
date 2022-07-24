@@ -66,7 +66,7 @@ class Attention(nn.Module):
         attention_mask: Optional[Any] = None, 
         query_attention_mask: Optional[Any] = None, 
         head_mask: Optional[Any] = None, 
-        return_attn_weight: bool = False, 
+        return_attn_weight: bool = True, 
     ):
         B, L= input.shape[0], input.shape[1]
         if self._do_self_attention:
@@ -79,7 +79,10 @@ class Attention(nn.Module):
         attn_value = self.proj(attn_value.permute(1, 2, 0, 3).reshape(B, L, self.embed_dim))
         attn_value = self.proj_dropout(attn_value)
         
-        return attn_value, attn_weight if return_attn_weight else attn_value
+        if return_attn_weight:
+            return attn_value, attn_weight
+        else:
+            return attn_value
     
 
 # How about not implementing decoder for now ?
@@ -113,7 +116,7 @@ class TransformerBlock(nn.Module):
         attention_mask: Optional[Any] = None, 
         query_attention_mask: Optional[Any] = None, 
         head_mask: Optional[Any] = None, 
-        return_attn_weight: bool = False
+        return_attn_weight: bool = True
     ): 
         residual = input
         attn_outputs = self.attention.forward(
@@ -133,34 +136,36 @@ class TransformerBlock(nn.Module):
         attn_value = self.ff(self.layer_norm2(attn_value))
         attn_value = attn_value + residual
         
-        return attn_value, attn_weight if return_attn_weight else attn_value
-
-
-class Transformer(nn.Module):
-    def __init__(
-        self, 
-        input_dim: int, 
-        embed_dim: int, 
-        n_head: int, 
-        n_layer: int, 
-        output_dim: int = 0
-    ):
-        self.embed_layer = nn.Linear(input_dim, embed_dim)
-        blocks = []
-        for i in range(n_layer):
-            blocks.append(TransformerBlock(
-                embed_dim, embed_dim, n_head, 
-            ))
-        self.transformer_blocks = nn.Sequential(*blocks)
-        if output_dim > 0:
-            self.output_layer = nn.Linear(embed_dim, output_dim)
+        if return_attn_weight:
+            return attn_value, attn_weight
         else:
-            self.output_layer = nn.Identity()
+            return attn_value
+
+
+# class Transformer(nn.Module):
+#     def __init__(
+#         self, 
+#         input_dim: int, 
+#         embed_dim: int, 
+#         n_head: int, 
+#         n_layer: int, 
+#         output_dim: int = 0
+#     ):
+#         self.embed_layer = nn.Linear(input_dim, embed_dim)
+#         blocks = []
+#         for i in range(n_layer):
+#             blocks.append(TransformerBlock(
+#                 embed_dim, embed_dim, n_head, return_attn_weight=False
+#             ))
+#         self.transformer_blocks = nn.Sequential(*blocks)
+#         if output_dim > 0:
+#             self.output_layer = nn.Linear(embed_dim, output_dim)
+#         else:
+#             self.output_layer = nn.Identity()
         
-    def forward(
-        self, 
-        input: torch.Tensor, 
-    ):
-        input = self.output_layer(self.transformer_blocks(self.embed_layer(input)))
-        
+#     def forward(
+#         self, 
+#         input: torch.Tensor, 
+#     ):
+#         input = self.output_layer(self.transformer_blocks(self.embed_layer(input)))
         
