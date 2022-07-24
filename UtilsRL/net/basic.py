@@ -34,13 +34,16 @@ class EnsembleLinear(nn.Module):
         device: Optional[Any] = None, 
         dtype: Optional[Any] = None
     ):
+        super().__init__()
         self.in_features = in_features
         self.out_features = out_features
         self.ensemble_size = ensemble_size
-        self.linear = nn.Linear(in_features*ensemble_size, out_features*ensemble_size, bias, device, dtype)
+        self.register_parameter("weight", torch.nn.Parameter(torch.zeros(ensemble_size, in_features, out_features)))
+        self.register_parameter("bias", torch.nn.Parameter(torch.zeros(ensemble_size, 1, out_features)))
+        torch.nn.init.trunc_normal_(self.weight, std=1/(2*in_features**0.5))
         
     def forward(self, input: torch.Tensor):
         if input.shape[0] != self.ensemble_size:
-            input = input.unsqueeze(0).repeat(self.ensemble_size)
-        out = self.linear(input.permute(1, 0, 2).reshape(-1, self.in_features*self.ensemble_size))
-        return out.reshape(-1, self.ensemble_size, self.out_features).permute(1, 0, 2)
+            return torch.einsum('ij,bjk->bik', input, self.weight) + self.bias
+        else:
+            return torch.einsum('bij,bjk->bik', input, self.weight) + self.bias
