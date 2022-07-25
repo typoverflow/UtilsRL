@@ -1,1 +1,1 @@
-from .data_structure import SumTree
+from data_structure import SumTree
