@@ -1,4 +1,5 @@
 import numpy as np
+import random
 
 from abc import ABC, abstractmethod
 
@@ -54,14 +55,18 @@ class ReplayPool(ABC):
     def random_batch(self, batch_size, *args, **kwargs):
         raise NotImplementedError
     
-    def random_indices(self, batch_size):
-        if self._size == 0: 
-            return np.arange(0, 0)
-        elif batch_size == 0:
-            idx = np.arange(0, self._size)
-            np.random.shuffle(idx)
-            return idx
-        return np.random.randint(0, self._size, batch_size)
+    @abstractmethod
+    def random_batch(self, batch_size, *args, **kwargs):
+        raise NotImplementedError
+    
+    # def random_indices(self, batch_size):
+        # if self._size == 0: 
+        #     return np.arange(0, 0)
+        # elif batch_size == 0:
+        #     idx = np.arange(0, self._size)
+        #     np.random.shuffle(idx)
+        #     return idx
+        # return np.random.randint(0, self._size, batch_size)
     
     def __getstate__(self):
         state = self.__dict__.copy()
@@ -142,13 +147,23 @@ class TransitionReplayPool(ReplayPool):
         
         self._advance(num_samples)
         
-    def random_batch(self, batch_size, fields=None):
+    def random_batch(self, batch_size, fields=None, return_idx=False):
         idx = self.random_indices(batch_size)
         if fields is None:
             fields = self.field_names
-        return {
+        samples = {
             field_name: self.fields[field_name][idx] for field_name in fields
         }
+        return samples, idx if return_idx else samples
+        
+    def random_indices(self, batch_size):
+        if self._size == 0: 
+            return np.arange(0, 0)
+        elif batch_size == 0:
+            idx = np.arange(0, self._size)
+            np.random.shuffle(idx)
+            return idx
+        return np.random.randint(0, self._size, batch_size)
 
 class TrajectoryReplayPool(ReplayPool):
     def __init__(self, observation_space, action_space, max_size, max_traj_len, extra_fields={}, ftype=np.float32, *args, **kwargs):
@@ -220,13 +235,23 @@ class TrajectoryReplayPool(ReplayPool):
             
         self._advance(num_samples)
         
-    def random_batch(self, batch_size, fields=None):
+    def random_batch(self, batch_size, fields=None, return_idx=False):
         idx = self.random_indices(batch_size)
         if fields is None:
             fields = list(self.field_names)
-        return {
+        samples = {
             field_name: self.fields[field_name][idx] for field_name in fields
         }
+        return samples, idx if return_idx else samples
+        
+    def random_indices(self, batch_size):
+        if self._size == 0: 
+            return np.arange(0, 0)
+        elif batch_size == 0:
+            idx = np.arange(0, self._size)
+            np.random.shuffle(idx)
+            return idx
+        return np.random.randint(0, self._size, batch_size)
         
     def random_batch_for_initial(self, batch_size):
         valids = np.sum(self.fields["valid"], axis=1).squeeze()[:self._size]
@@ -250,4 +275,51 @@ class TrajectoryReplayPool(ReplayPool):
             batch[field] = data
         return batch
     
+
+class PrioritizedReplayPool(TransitionReplayPool):
+    def __init__(self, observation_space, action_space, max_size, extra_fields={}, ftype=np.float32, *args, **kwargs):
+        super().__init__(observation_space, action_space, max_size, extra_fields, ftype, *args, **kwargs)
+        if not hasattr(self, max_size):
+            raise AttributeError("PER object should have `max_size` field to init CSumTree!")
+        from UtilsRL.data_structure.data_structure import SumTree as CSumTree
+        self.cst = CSumTree(self.max_size)
         
+    def add_samples(self, samples, values):
+        sample_fields = list(samples.keys())
+        num_samples = samples[sample_fields[0]].shape[0]
+        index_togo = np.arange(self._pointer, self._pointer+num_samples)
+        for field_name in self.field_names:
+            if field_name not in sample_fields:
+                continue
+            values = samples[field_name]
+            self.fields[field_name][index_togo] = values
+        self._advance(num_samples)
+        
+        # update sum tree
+        
+        
+    def random_batch(self, batch_size, fields=None, return_idx=True):
+        idx = self.random_indices(batch_size)
+        if fields is None:
+            fields = self.field_names
+        samples = {
+            field_name: self.fields[field_name][idx] for field_name in fields
+        }
+        return samples, idx if return_idx else samples
+        
+    def random_indices(self, batch_size, return_value=False):
+        if self._size == 0:
+            idx = np.arange(0, 0)
+        elif batch_size == 0:
+            idx = np.arange(0, self._size)
+            np.random.shuffle(idx)
+        idx = []
+        for _ in range(batch_size):
+            idx.append(self.cst.find(random.random))
+        idx = np.asarray(idx, np.int32)
+        if return_value:
+            value = np.asarray(self.cst.values(idx), self.ftype)
+            return idx, value
+        else:
+            return idx
+                

@@ -6,42 +6,71 @@ on:
       - v*
 
 jobs: 
-  build_and_upload:
-    name: build and upload to pypi
+  build_sdist: 
+    name: build sdist
     runs-on: ubuntu-latest
-    if: |
-      startsWith(github.ref, 'refs/tags/v')
     steps: 
-      - name: Checkout
-        uses: actions/checkout@v2.3.1
+      - name: checkout
+        uses: actions/checkout@v3
 
-      - name: Set Version
+      - name: setup version
         run: |
           [ "v"`cat VERSION` = ${GITHUB_REF##*/} ] && echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+        
+      - name: build sdist
+        run: pipx run build --sdist
       
-      - name: Set up python
-        uses: actions/setup-python@v2
+      - name: check metadata
+        run: pipx run twine check dist/*
+      
+      - name: upload artifact
+        uses: actions/upload-artifact@v3
         with: 
-          python-version: 3.9
-
-      - name: Install dependencies and build
-        run: |
-          python -m pip install --upgrade pip
-          pip install setuptools wheel twine
-          python setup.py sdist bdist_wheel
+          path: dist/*.tar.gz
       
-      - name: Upload
-        uses: pypa/gh-action-pypi-publish@release/v1
+  build_wheels: 
+    name: build wheels for ${{matrix.os}}
+    runs-on: ubuntu-latest
+    strategy: 
+      fail-fast: false
+      matrix: 
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps: 
+      - name: checkout
+        uses: actions/checkout@v3
+      
+      - name: setup version
+        run: |
+          [ "v"`cat VERSION` = ${GITHUB_REF##*/} ] && echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+
+      - name: build
+        uses: pypa/cibuildwheel@v2.8.0
+        env:
+          CIBW_ARCHS_MACOS: auto universal2
+      
+      - name: verify clean directory
+        run: git diff --exit-code
+        shell: bash
+
+      - name: upload artifact
+        uses: actions/upload-artifact@v3
+        with: 
+          path: wheelhouse/*.whl
+
+  upload: 
+    name: upload to pypi
+    needs: [build_sdist, build_wheels]
+    runs-on: ubuntu-latest
+    steps: 
+      - uses: actions/setup-python@v2
+
+      - uses: action/download-artifact@v3
+        with: 
+          name: artifact
+          path: dist
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
         with: 
           user: "__token__"
           password: ${{ secrets.PYPI_TOKEN }}
-
-      # - name: Release
-      #   uses: "marvinpinto/action-automatic-releases@latest"
-      #   with: 
-      #     repo_token: "${{ secrets.GH_TOKEN }}"
-      #     prerelease: false
-      #     files: |
-      #       dist/*
-
-
