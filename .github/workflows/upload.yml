@@ -30,19 +30,19 @@ jobs:
       
   build_wheels: 
     name: build wheels for ${{matrix.os}}
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
     strategy: 
       fail-fast: false
       matrix: 
-        os: [ubuntu-latest, windows-latest, macos-latest]
+        os: [ubuntu-latest, windows-latest]
 
     steps: 
       - name: checkout
         uses: actions/checkout@v3
       
-      - name: setup version
-        run: |
-          [ "v"`cat VERSION` = ${GITHUB_REF##*/} ] && echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
+          #      - name: setup version
+          #        run: |
+          #          [ "v"`cat VERSION` = ${GITHUB_REF##*/} ] && echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
       - name: build
         uses: pypa/cibuildwheel@v2.8.0
