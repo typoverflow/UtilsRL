@@ -154,7 +154,7 @@ class TransitionReplayPool(ReplayPool):
         samples = {
             field_name: self.fields[field_name][idx] for field_name in fields
         }
-        return samples, idx if return_idx else samples
+        return (samples, idx) if return_idx else samples
         
     def random_indices(self, batch_size):
         if self._size == 0: 
@@ -242,7 +242,7 @@ class TrajectoryReplayPool(ReplayPool):
         samples = {
             field_name: self.fields[field_name][idx] for field_name in fields
         }
-        return samples, idx if return_idx else samples
+        return (samples, idx) if return_idx else samples
         
     def random_indices(self, batch_size):
         if self._size == 0: 
@@ -305,7 +305,7 @@ class PrioritizedReplayPool(TransitionReplayPool):
         samples = {
             field_name: self.fields[field_name][idx] for field_name in fields
         }
-        return samples, idx if return_idx else samples
+        return (samples, idx) if return_idx else samples
         
     def random_indices(self, batch_size, return_value=False):
         if self._size == 0:
