@@ -20,7 +20,7 @@ from UtilsRL.misc.decorator import profile
 
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
-logger = TensorboardLogger(args.log_path, args.name)
+logger = TensorboardLogger(args.log_path, "_".join([args.name, args.task]))
 setup(args, logger, args.device)
 print(args)
 
@@ -148,11 +148,11 @@ def compute_gae(rewards, values, last_v, gamma=0.99, lam=0.97):
     return gae, ret
     
 buffer = TransitionReplayPool(args.obs_space, args.action_space, args.buffer_size, extra_fields={
-    "advantage": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
-    "logprob": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
-    "return": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
-    "value": {"shape": (1, ), "dtype": args.UtilsRL.ftype}
-}, ftype=args.UtilsRL.ftype)
+    "advantage": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
+    "logprob": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
+    "return": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
+    "value": {"shape": (1, ), "dtype": args.UtilsRL.precision}
+}, ftype=args.UtilsRL.precision)
 
 tot_env_step = 0
 # traj_length = traj_return = 0

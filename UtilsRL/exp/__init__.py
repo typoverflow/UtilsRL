@@ -63,4 +63,4 @@ def setup(args,
 
     
 register_argparse_callback("UtilsRL.snapshot", make_snapshot)
-register_argparse_callback("UtilsRL.ftype", set_precision)
+register_argparse_callback("UtilsRL.precision", set_precision)

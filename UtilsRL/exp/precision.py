@@ -7,6 +7,8 @@ from UtilsRL.logger import logger
 from typing import Optional, Dict, Union
 
 def set_precision(args: Optional[Union[torch.dtype, str, int]]):
+    if args is None:  # default precision is float32
+        args = 32
     if args in {16, 32, 64}:
         if args == 16: prec = "float16"
         elif args == 32: prec = "float32"
@@ -43,9 +45,9 @@ def set_precision(args: Optional[Union[torch.dtype, str, int]]):
         torch.set_default_tensor_type(torch.DoubleTensor)
     
     return {
-        "UtilsRL.np_ftype": np_ftype, 
-        "UtilsRL.torch_ftype": torch_ftype, 
-        "UtilsRL.ftype": prec
+        "UtilsRL.numpy_fp": np_ftype, 
+        "UtilsRL.torch_fp": torch_ftype, 
+        "UtilsRL.precision": prec
     }
     
     
