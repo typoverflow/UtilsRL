@@ -5,10 +5,10 @@ import torch.nn as nn
 import numpy as np
 
 from UtilsRL.math.distributions import TanhNormal
-from UtilsRL.net import MLP
+from UtilsRL.net import MLP, EnsembleMLP
 from torch.distributions import Categorical, Normal
 
-class SingleCritic(nn.Module):
+class Critic(nn.Module):
     """A vanilla state-action critic, which outputs a single value Q(s, a) at a time. 
     
     :param backend: feature extraction backend of the critic. 
@@ -24,7 +24,8 @@ class SingleCritic(nn.Module):
                  output_dim: int=1, 
                  device: Union[str, int, torch.device] = "cpu", 
                  hidden_dims: Union[int, Sequence[int]] = [], 
-                 linear_layer: nn.Module=nn.Linear
+                 ensemble_size: int=1, 
+                 share_hidden_layer: Union[Sequence[bool], bool]=False
                  ):
         super().__init__()
         
@@ -36,13 +37,24 @@ class SingleCritic(nn.Module):
         
         if isinstance(hidden_dims, int):
             hidden_dims = [hidden_dims]
-        self.output_layer = MLP(
-            input_dim = input_dim, 
-            output_dim = output_dim, 
-            hidden_dims = hidden_dims, 
-            device = device, 
-            linear_layer=linear_layer
-        )
+        if ensemble_size == 1:
+            self.output_layer = MLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device
+            )
+        elif isinstance(ensemble_size, int) and ensemble_size > 1:
+            self.output_layer = EnsembleMLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device, 
+                ensemble_size = ensemble_size, 
+                share_hidden_layer = share_hidden_layer
+            )
+        else:
+            raise ValueError(f"ensemble size should be int >= 1.")
         
     def forward(self, state: torch.Tensor, action: Optional[torch.Tensor]=None):
         """Just state-action compute Q(s, a). 

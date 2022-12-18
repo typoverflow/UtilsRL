@@ -72,7 +72,7 @@ class EnsembleMLP(nn.Module):
                 assert len(norm_layer) == len(hidden_dims)
                 norm_layer_list = norm_layer
             else:
-                morm_layer_list = [norm_layer for _ in range(len(hidden_dims))]
+                norm_layer_list = [norm_layer for _ in range(len(hidden_dims))]
         else:
             norm_layer_list = [None]*len(hidden_dims)
         
