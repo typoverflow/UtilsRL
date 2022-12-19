@@ -6,6 +6,11 @@ from UtilsRL.logger import logger
 from typing import Optional, Dict, Union
 
 def make_snapshot(args: Optional[Union[Dict, NameSpace, str]]):
+    if args is None:
+        return {
+            "UtilsRL.snapshot_branch": None
+        }
+        
     prefix = branch = "/".join(["snapshot", args])
     suffix = 0
     while os.system(f"git --no-pager branch | grep {branch} > /dev/null 2>&1") == 0:

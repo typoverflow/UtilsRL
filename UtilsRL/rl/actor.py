@@ -5,7 +5,7 @@ import torch.nn as nn
 import numpy as np
 
 from UtilsRL.math.distributions import TanhNormal
-from UtilsRL.net import MLP
+from UtilsRL.net import MLP, EnsembleMLP
 from torch.distributions import Categorical, Normal
 
 from abc import ABC, abstractmethod
@@ -62,7 +62,8 @@ class DeterministicActor(BaseActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]]=[],
-                 linear_layer: nn.Module=nn.Linear
+                 ensemble_size: int = 1, 
+                 share_hidden_layer: Union[Sequence[bool], bool] = False
                  ):
         super().__init__()
         self.actor_type = "DeterministicActor"
@@ -74,13 +75,24 @@ class DeterministicActor(BaseActor):
         
         if isinstance(hidden_dims, int):
             hidden_dims = [hidden_dims]
-        self.output_layer = MLP(
-            input_dim = input_dim, 
-            output_dim = output_dim,
-            hidden_dims = hidden_dims, 
-            device = device, 
-            linear_layer=linear_layer
-        )
+        if ensemble_size == 1:
+            self.output_layer = MLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device
+            )
+        elif isinstance(ensemble_size, int) and ensemble_size > 1:
+            self.output_layer = EnsembleMLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device, 
+                ensemble_size = ensemble_size, 
+                share_hidden_layer = share_hidden_layer
+            )
+        else:
+            raise ValueError(f"ensemble size should be int >= 1.")
     
     def forward(self, input: torch.Tensor):
         """Forward pass of the actor. 
@@ -118,9 +130,10 @@ class SquashedDeterministicActor(DeterministicActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]]=[],
-                 linear_layer: nn.Module=nn.Linear, 
+                 ensemble_size: int = 1, 
+                 share_hidden_layer: Union[Sequence[bool], bool] = False
                  ):
-        super().__init__(backend, input_dim, output_dim, device, hidden_dims, linear_layer)
+        super().__init__(backend, input_dim, output_dim, device, hidden_dims, ensemble_size, share_hidden_layer)
         self.actor_type = "SqushedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
@@ -144,9 +157,10 @@ class ClippedDeterministicActor(DeterministicActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]]=[], 
-                 linear_layer: nn.Module=nn.Linear
+                 ensemble_size: int = 1, 
+                 share_hidden_layer: Union[Sequence[bool], bool] = False
                  ):
-        super().__init__(backend, input_dim, output_dim, device, hidden_dims, linear_layer)
+        super().__init__(backend, input_dim, output_dim, device, hidden_dims, ensemble_size, share_hidden_layer)
         self.actor_type = "ClippedDeterministicActor"
         
     def sample(self, input: torch.Tensor):
@@ -183,7 +197,8 @@ class GaussianActor(BaseActor):
                  conditioned_logstd: bool=True, 
                  fix_logstd: Optional[float]=None, 
                  hidden_dims: Union[int, Sequence[int]]=[],
-                 linear_layer: nn.Module=nn.Linear, 
+                 ensemble_size: int=1, 
+                 share_hidden_layer: Union[Sequence[bool], bool]=False, 
                  logstd_min: int = -20, 
                  logstd_max: int = 2,
                  ):
@@ -208,13 +223,24 @@ class GaussianActor(BaseActor):
 
         if isinstance(hidden_dims, int):
             hidden_dims = [hidden_dims]
-        self.output_layer = MLP(
-            input_dim = input_dim,
-            output_dim = output_dim, 
-            hidden_dims = hidden_dims, 
-            device = device, 
-            linear_layer=linear_layer
-        )
+        if ensemble_size == 1:
+            self.output_layer = MLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device
+            )
+        elif isinstance(ensemble_size, int) and ensemble_size > 1:
+            self.output_layer = EnsembleMLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device, 
+                ensemble_size = ensemble_size, 
+                share_hidden_layer = share_hidden_layer
+            )
+        else:
+            raise ValueError(f"ensemble size should be int >= 1.")
         
         self.register_buffer("logstd_min", torch.tensor(logstd_min))
         self.register_buffer("logstd_max", torch.tensor(logstd_max))
@@ -283,11 +309,12 @@ class SquashedGaussianActor(GaussianActor):
                  conditioned_logstd: bool = True, 
                  fix_logstd: Optional[float] = None, 
                  hidden_dims: Union[int, Sequence[int]] = [],
-                 linear_layer: nn.Module=nn.Linear,
+                 ensemble_size: int=1, 
+                 share_hidden_layer: Union[Sequence[bool], bool]=False,
                  logstd_min: int = -20, 
                  logstd_max: int = 2, 
                  ):
-        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, linear_layer, logstd_min, logstd_max)
+        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, ensemble_size, share_hidden_layer, logstd_min, logstd_max)
         self.actor_type = "SquashedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
@@ -335,11 +362,12 @@ class ClippedGaussianActor(GaussianActor):
                  conditioned_logstd: bool = True, 
                  fix_logstd: Optional[float] = None, 
                  hidden_dims: Union[int, Sequence[int]] = [],
-                 linear_layer: nn.Module=nn.Linear,
+                 ensemble_size: int=1, 
+                 share_hidden_layer: Union[Sequence[bool], bool]=False,
                  logstd_min: int = -20, 
                  logstd_max: int = 2, 
                  ):
-        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, linear_layer, logstd_min, logstd_max)
+        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, ensemble_size, share_hidden_layer, logstd_min, logstd_max)
         self.actor_type = "ClippedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
@@ -362,7 +390,8 @@ class CategoricalActor(BaseActor):
                  output_dim: int, 
                  device: Union[str, int, torch.device]="cpu", 
                  hidden_dims: Union[int, Sequence[int]] = [],
-                 linear_layer: nn.Module=nn.Linear,
+                 ensemble_size: int=1, 
+                 share_hidden_layer: Union[Sequence[bool], bool]=False, 
                  ):
         super().__init__()
         
@@ -374,13 +403,24 @@ class CategoricalActor(BaseActor):
         
         if isinstance(hidden_dims, int): 
             hidden_dims = [hidden_dims]
-        self.output_layer = MLP(
-            input_dim = input_dim, 
-            output_dim = output_dim, 
-            hidden_dims = hidden_dims, 
-            device = device, 
-            linear_layer=linear_layer
-        )
+        if ensemble_size == 1:
+            self.output_layer = MLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device
+            )
+        elif isinstance(ensemble_size, int) and ensemble_size > 1:
+            self.output_layer = EnsembleMLP(
+                input_dim = input_dim, 
+                output_dim = output_dim, 
+                hidden_dims = hidden_dims, 
+                device = device, 
+                ensemble_size = ensemble_size, 
+                share_hidden_layer = share_hidden_layer
+            )
+        else:
+            raise ValueError(f"ensemble size should be int >= 1.")
         
     def forward(self, input: torch.Tensor):
         out = self.output_layer(self.backend(input))

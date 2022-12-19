@@ -27,7 +27,7 @@ eval_interval = 10
 eval_num_traj = 10
 
 class UtilsRL(NameSpace):
-    ftype = "float32"
+    precision = "float32"
 
 task = "HalfCheetah-v3"
 log_path = "./tests/log"

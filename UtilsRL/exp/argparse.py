@@ -111,6 +111,8 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
         for k in _keys:
             _args = _args.get(k, None)
             if _args is None:
+                ret = argparse_callbacks[key](None)  # call callback with default None and then break
+                file_args = update_args(file_args, ret, eval=False)
                 break
         else:
             ret = argparse_callbacks[key](_args)

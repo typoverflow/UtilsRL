@@ -11,8 +11,8 @@ from UtilsRL.math import discounted_cum_sum
 from UtilsRL.rl.normalizer import RunningNormalizer, DummyNormalizer
 from UtilsRL.rl.buffer import TransitionReplayPool
 from UtilsRL.rl.actor import SquashedGaussianActor
-from UtilsRL.rl.critic import SingleCritic
-from UtilsRL.rl.net import MLP
+from UtilsRL.rl.critic import Critic
+from UtilsRL.net import MLP
 from UtilsRL.logger import TensorboardLogger
 from UtilsRL.monitor import Monitor
 from UtilsRL.exp import parse_args, setup
@@ -20,8 +20,9 @@ from UtilsRL.misc.decorator import profile
 
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
-logger = TensorboardLogger(args.log_path, args.name)
+logger = TensorboardLogger(args.log_path, "_".join([args.name, args.task]))
 setup(args, logger, args.device)
+print(args)
 
 # 2. Add environment specs to arguments
 task = args.task
@@ -30,7 +31,7 @@ args["obs_space"] = env.observation_space
 args["action_space"] = env.action_space
 args["obs_shape"] = env.observation_space.shape[0]
 args["action_shape"] = env.action_space.shape[0]
-np_ftype, torch_ftype = args.UtilsRL.np_ftype, args.UtilsRL.torch_ftype
+np_ftype, torch_ftype = args.UtilsRL.numpy_fp, args.UtilsRL.torch_fp
 
 # 3. Define structures of networks
 actor_backend = MLP(args.obs_shape, 0, args.actor_hidden_dims, activation=nn.Tanh, device=args.device)
@@ -41,14 +42,10 @@ actor = SquashedGaussianActor(
     actor_backend, args.actor_hidden_dims[-1], args.action_shape, 
     device=args.device, reparameterize=False, conditioned_logstd=False, hidden_dims=args.actor_output_hidden_dims
 ).to(args.device)
-critic1 = SingleCritic(
+critic1 = Critic(
     critic1_backend, args.critic_hidden_dims[-1], 1, 
     device=args.device, hidden_dims=args.critic_output_hidden_dims
 ).to(args.device)
-# critic2 = SingleCritic(
-#     critic2_backend, args.critic_hidden_dims[-1], 1, 
-#     device=args.device
-# ).to(args.device)
 
 actor_optim = torch.optim.Adam(actor.parameters(), lr=args.actor_lr)
 critic_optim = torch.optim.Adam([*critic1.parameters()], lr=args.critic_lr)
@@ -151,11 +148,11 @@ def compute_gae(rewards, values, last_v, gamma=0.99, lam=0.97):
     return gae, ret
     
 buffer = TransitionReplayPool(args.obs_space, args.action_space, args.buffer_size, extra_fields={
-    "advantage": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
-    "logprob": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
-    "return": {"shape": (1, ), "dtype": args.UtilsRL.ftype}, 
-    "value": {"shape": (1, ), "dtype": args.UtilsRL.ftype}
-}, ftype=args.UtilsRL.ftype)
+    "advantage": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
+    "logprob": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
+    "return": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
+    "value": {"shape": (1, ), "dtype": args.UtilsRL.precision}
+}, ftype=args.UtilsRL.precision)
 
 tot_env_step = 0
 # traj_length = traj_return = 0
