@@ -7,7 +7,7 @@ class Replay(ABC):
     def __init__(self, max_size: int, field_specs: Optional[DictLike]=None, *args, **kwargs):
         super().__init__()
         self._max_size = int(max_size)
-        self.field_specs = self.field_specs
+        self.field_specs = field_specs
         
     @property
     def field_names(self):
@@ -37,11 +37,12 @@ class Replay(ABC):
 class SimpleReplay(ABC):
     def __init__(self, max_size: int, field_specs: Optional[DictLike]=None, *args, **kwargs):
         super().__init__()
-        self._max_size = int(max_size)
-        self.field_specs = field_specs
+        self.field_specs = {}
         self.fields = {}
+        
+        self._max_size = int(max_size)
         self._size = 0
-        self.add_fields(self.field_specs)
+        self.add_fields(field_specs)
         self.reset()
                 
     def __len__(self):
@@ -66,11 +67,10 @@ class SimpleReplay(ABC):
 
 class FlexReplay(ABC):
     def __init__(self, max_size: int, field_specs: Optional[DictLike]=None, cache_max_size: Optional[int]=None, *args, **kwargs):
-        super.__init__()
-        self.field_specs = field_specs
-        self.committed_fields = None
-        self.cache_fields = None
-        self.field_specs = field_specs
+        super().__init__()
+        self.field_specs = {}
+        self.committed_fields = {}
+        self.cache_fields = {}
         
         self._committed_max_size = int(max_size)
         self._cache_max_size = cache_max_size or int(self._committed_max_size * 0.1)
@@ -78,7 +78,7 @@ class FlexReplay(ABC):
         self._cache_pointer = 0
         self._cache_start = 0
         
-        self.add_fields(self.field_specs)
+        self.add_fields(field_specs)
         self.reset()
         
     def reset(self):

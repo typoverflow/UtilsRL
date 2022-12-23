@@ -88,7 +88,7 @@ class TransitionFlexReplay(FlexReplay):
             self.cache_fields[_key] = initializer(shape=[self._cache_max_size, ]+list(_spec["shape"]), dtype=_spec["dtype"])  
     
     def add_fields(self, new_field_specs):
-        new_field_specs= new_field_specs or {}
+        new_field_specs = new_field_specs or {}
         self.cache_fields = self.cache_fields or {}
         self.committed_fields = self.committed_fields or {}
         for _key, _specs in new_field_specs.items():
@@ -96,19 +96,23 @@ class TransitionFlexReplay(FlexReplay):
             if _old_spec is None or _old_spec != _specs:
                 self.field_specs[_key] = _specs
                 initializer = _specs.get("initializer", np.zeros)
-                self.cache_fields[_key] = initializer(shape=[self._max_size, ]+list(_specs["shape"]), dtype=_specs["dtype"])
+                self.cache_fields[_key] = initializer(shape=[self._committed_max_size, ]+list(_specs["shape"]), dtype=_specs["dtype"])
                 self.committed_fields[_key] = initializer(shape=[self._cache_max_size, ]+list(_specs["shape"]), dtype=_specs["dtype"])
 
     def add_sample(self, key_or_dict: Union[str, DictLike], data: Optional[Any]=None):
         if isinstance(key_or_dict, str):
             key_or_dict = {key_or_dict: data}
+        _data_len = None
         for _key, _data in key_or_dict.items():
-            _data = _data.reshape([-1, ]+self.field_specs[_key]["shape"])
-            _data_len = _data.shape[0]
+            if _data_len is None:
+                _data_arr = np.asarray(_data)
+                if _data_arr.shape == ():
+                    _data_arr = np.asarray([_data, ])
+                _data_len = _data_arr.reshape([-1, ]+self.field_specs[_key]["shape"]).shape[0]
             _key_pointer = self._cache_pointer[_key]
             index = np.arange(_key_pointer, _key_pointer+_data_len) % self._cache_max_size
             self.cache_fields[_key][index] = _data
-            self._cache_pointer[_key] = (self._cache_pointer + _data_len) % self._cache_max_size
+            self._cache_pointer[_key] = (_key_pointer + _data_len) % self._cache_max_size
 
 
     def commit(self, commit_num: Optional[int]=None):
@@ -120,7 +124,7 @@ class TransitionFlexReplay(FlexReplay):
             raise ValueError(f"cannot commit {commit_num} samples, cache size is only {can_commit_num.max()}.")
         index1 = np.arange(self._committed_pointer, self._committed_pointer + commit_num) % self._committed_max_size
         index2 = np.arange(self._cache_start, self._cache_start + commit_num) % self._cache_max_size
-        for _key in self.field_specs.items():
+        for _key in self.field_specs:
             self.committed_fields[_key][index1] = self.cache_fields[_key][index2]
         # update pointers
         self._committed_size = min(self._committed_size+commit_num, self._committed_max_size)
@@ -151,7 +155,7 @@ class TransitionFlexReplay(FlexReplay):
         index = np.arange(self._cache_start, self._cache_start + num) % self._cache_max_size
         ret = {
             _key: self.cache_fields[_key][index] \
-                for _key, _pointer in self._cache_pointer if _pointer > self._cache_start
+                for _key, _pointer in self._cache_pointer.items() if _pointer != self._cache_start
         }
         return ret
     

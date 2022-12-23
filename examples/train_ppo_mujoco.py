@@ -9,18 +9,21 @@ from operator import itemgetter
 
 from UtilsRL.math import discounted_cum_sum
 from UtilsRL.rl.normalizer import RunningNormalizer, DummyNormalizer
-from UtilsRL.rl.buffer import TransitionReplayPool
+from UtilsRL.rl.buffer import TransitionSimpleReplay, TransitionFlexReplay, convert_space_to_spec
 from UtilsRL.rl.actor import SquashedGaussianActor
 from UtilsRL.rl.critic import Critic
 from UtilsRL.net import MLP
-from UtilsRL.logger import TensorboardLogger
+from UtilsRL.logger import TensorboardLogger, DummyLogger
 from UtilsRL.monitor import Monitor
 from UtilsRL.exp import parse_args, setup
 from UtilsRL.misc.decorator import profile
 
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
-logger = TensorboardLogger(args.log_path, "_".join([args.name, args.task]))
+if args.debug:
+    logger = DummyLogger()
+else:
+    logger = TensorboardLogger(args.log_path, "_".join([args.name, args.task]))
 setup(args, logger, args.device)
 print(args)
 
@@ -53,7 +56,7 @@ critic_optim = torch.optim.Adam([*critic1.parameters()], lr=args.critic_lr)
 obs_normalizer = RunningNormalizer(shape=args.obs_shape).to(args.device)
 
 # 4. Define the agent logic, including update, get_action and get_value
-def update(data_batch):
+def ppo_update(data_batch):
     obs_batch, action_batch, logprob_batch, advantage_batch, return_batch = \
         itemgetter("obs", "action", "logprob", "advantage", "return")(data_batch)
     obs_batch = torch.from_numpy(obs_batch).to(torch_ftype).to(args.device)
@@ -147,20 +150,24 @@ def compute_gae(rewards, values, last_v, gamma=0.99, lam=0.97):
     # gae = (gae - gae.mean()) / (gae.std() + 1e-8)
     return gae, ret
     
-buffer = TransitionReplayPool(args.obs_space, args.action_space, args.buffer_size, extra_fields={
-    "advantage": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
-    "logprob": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
-    "return": {"shape": (1, ), "dtype": args.UtilsRL.precision}, 
-    "value": {"shape": (1, ), "dtype": args.UtilsRL.precision}
-}, ftype=args.UtilsRL.precision)
+buffer = TransitionFlexReplay(args.buffer_size, cache_max_size=args.buffer_size, field_specs={
+    "obs": convert_space_to_spec(env.observation_space), 
+    "action":   convert_space_to_spec(env.action_space), 
+    "next_obs": convert_space_to_spec(env.observation_space), 
+    "reward":   {"shape": [1, ], "dtype": np.float32}, 
+    "done":     {"shape": [1, ], "dtype": np.float32}, 
+    "advantage": {"shape": [1, ], "dtype": np.float32}, 
+    "logprob":  {"shape": [1, ], "dtype": np.float32},
+    "return":   {"shape": [1, ], "dtype": np.float32}, 
+    "value":    {"shape": [1, ], "dtype": np.float32}
+})
 
 tot_env_step = 0
 # traj_length = traj_return = 0
 env = gym.make(task)
 for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
-    buffer.clear()
     obs, done = env.reset(), False
-    sample_ph = buffer.get_placeholder(args.sample_per_epoch)
+    # sample_ph = buffer.get_placeholder(args.sample_per_epoch)
     traj_length = traj_return = traj_start = 0
     for env_step in range(args.sample_per_epoch):
         obs_norm = obs_normalizer.transform(torch.from_numpy(obs).to(torch_ftype).to(args.device)).cpu().numpy()
@@ -172,13 +179,15 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
         
         value = get_value(obs_norm)
         
-        sample_ph["obs"][env_step] = obs
-        sample_ph["action"][env_step] = action
-        sample_ph["logprob"][env_step] = logprob
-        sample_ph["next_obs"][env_step] = next_obs
-        sample_ph["reward"][env_step] = reward
-        sample_ph["done"][env_step] = done
-        sample_ph["value"][env_step] = value
+        buffer.add_sample({
+            "obs": obs, 
+            "action": action, 
+            "logprob": logprob, 
+            "next_obs": next_obs, 
+            "reward": reward, 
+            "done": done, 
+            "value": value
+        })
         
         epoch_ended = env_step == args.sample_per_epoch - 1
         timeout = traj_length == args.max_traj_length
@@ -188,12 +197,14 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
                 last_v = get_value(next_obs)
             else:
                 last_v = 0
-            gae, ret = compute_gae(sample_ph["reward"][traj_start:env_step+1], sample_ph["value"][traj_start:env_step+1], last_v=last_v)
-            sample_ph["return"][traj_start:env_step+1] = ret.reshape(-1, 1)
-            sample_ph["advantage"][traj_start:env_step+1] = gae.reshape(-1, 1)
-            # for field in buffer.field_names:
-                # sample_ph[field] = sample_ph[field][:traj_length]
-            # buffer.add_samples(sample_ph)
+                
+            cached_reward, cached_value = itemgetter("reward", "value")(buffer.get_cache_data())
+            gae, ret = compute_gae(cached_reward.reshape(-1), cached_value.reshape(-1), last_v=last_v)
+            buffer.add_sample({
+                "advantage": gae[:, None], 
+                "return": ret[:, None]
+            })
+            buffer.commit()
             
             next_obs, done = env.reset(), False
             traj_length = 0
@@ -202,38 +213,37 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
         obs = next_obs
     
     if i_epoch < args.warmup_epoch:
-        obs_torch = torch.from_numpy(sample_ph["obs"]).to(torch_ftype).to(args.device)
+        obs_torch = torch.from_numpy(buffer.random_batch(None)["obs"]).to(torch_ftype).to(args.device)
         obs_normalizer.update(obs_torch)
         continue
-    # sample_ph["obs"] = obs_normalizer.transform(obs_torch).cpu().numpy()
-    buffer.add_samples(sample_ph)
-    data_batch = buffer.random_batch(0)
-    data_batch["obs"] = obs_normalizer.transform(torch.from_numpy(data_batch["obs"]).to(torch_ftype).to(args.device)).cpu().numpy()
-    train_loss = update(data_batch)
+    else:
+        data_batch = buffer.random_batch()
+        data_batch["obs"] = obs_normalizer.transform(torch.from_numpy(data_batch["obs"]).to(torch_ftype).to(args.device)).cpu().numpy()
+        train_loss = ppo_update(data_batch)
 
-    if i_epoch % args.eval_interval == 0:
-        traj_lengths = []
-        traj_returns = []
-        for traj_id in range(args.eval_num_traj):
-            traj_return = traj_length = 0
-            state, done = env.reset(), False
-            for step in range(args.max_traj_length):
-                state_norm = obs_normalizer.transform(torch.from_numpy(state).to(torch_ftype).to(args.device)).cpu().numpy()
-                action, _= get_action(state_norm, deterministic=True)
-                state, reward, done, _ = env.step(action)
-                traj_return += reward
-                traj_length += 1
-                if done:
-                    break
-            traj_lengths.append(traj_length)
-            traj_returns.append(traj_return)
-        train_loss.update({
-            "eval/traj_return": np.mean(traj_returns), 
-            "eval/traj_length": np.mean(traj_lengths)
-        })
+        if i_epoch % args.eval_interval == 0:
+            traj_lengths = []
+            traj_returns = []
+            for traj_id in range(args.eval_num_traj):
+                traj_return = traj_length = 0
+                state, done = env.reset(), False
+                for step in range(args.max_traj_length):
+                    state_norm = obs_normalizer.transform(torch.from_numpy(state).to(torch_ftype).to(args.device)).cpu().numpy()
+                    action, _= get_action(state_norm, deterministic=True)
+                    state, reward, done, _ = env.step(action)
+                    traj_return += reward
+                    traj_length += 1
+                    if done:
+                        break
+                traj_lengths.append(traj_length)
+                traj_returns.append(traj_return)
+            train_loss.update({
+                "eval/traj_return": np.mean(traj_returns), 
+                "eval/traj_length": np.mean(traj_lengths)
+            })
         
-    obs_torch = torch.from_numpy(sample_ph["obs"]).to(torch_ftype).to(args.device)
-    obs_normalizer.update(obs_torch)  
+        obs_torch = torch.from_numpy(data_batch["obs"]).to(torch_ftype).to(args.device)
+        obs_normalizer.update(obs_torch)  
      
     for k, v in train_loss.items():
         logger.log_scalar(k, v, i_epoch)

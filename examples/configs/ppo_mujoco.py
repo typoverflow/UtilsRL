@@ -1,5 +1,7 @@
 from UtilsRL.misc.namespace import NameSpace
 
+debug = False
+
 device = 0
 seed = 0
 actor_lr = 3e-4
@@ -11,7 +13,7 @@ actor_output_hidden_dims = [64, ]
 critic_output_hidden_dims = [64, ]
 
 # reward_scale = 5
-warmup_epoch = 20
+warmup_epoch = 5
 repeat_step = 10
 clip_range = 0.2
 entropy_coeff = 0.0
@@ -19,7 +21,7 @@ target_kl = 3
 
 buffer_size = 2048
 batch_size = 64
-max_epoch = 3000
+max_epoch = 2000
 sample_per_epoch = 2048
 max_traj_length = 1000
 
@@ -31,4 +33,4 @@ class UtilsRL(NameSpace):
 
 task = "HalfCheetah-v3"
 log_path = "./tests/log"
-name = "debug"
+name = "debug_buffer"
