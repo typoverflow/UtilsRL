@@ -17,9 +17,13 @@ using namespace std;
 PYBIND11_MODULE(data_structure, m) {
     py::class_<SumTree>(m, "SumTree")
         .def(py::init<int>())
-        .def("update", &SumTree::update)
-        .def("add", &SumTree::add)
-        .def("find", &SumTree::find, "Search the tree and return the index with given target value. ", 
+        .def("update", static_cast<SumTree& (SumTree::*)(int, double)>(&SumTree::update))
+        .def("update", static_cast<SumTree& (SumTree::*)(vector<int>, vector<double>)>(&SumTree::update))
+        .def("add", static_cast<SumTree& (SumTree::*)(vector<double>)>(&SumTree::add))
+        .def("add", static_cast<SumTree& (SumTree::*)(double)>(&SumTree::add))
+        .def("find", static_cast<pair<int, double> (SumTree::*)(double, bool)>(&SumTree::find), "Search the tree and return the index with given target value. ", 
+            "target"_a, "scale"_a=true)
+        .def("find", static_cast<pair<vector<int>, vector<double>> (SumTree::*)(vector<double>, bool)>(&SumTree::find), "Search the tree and return the index with given target value in batch. ", 
             "target"_a, "scale"_a=true)
         .def("show", &SumTree::show)
         .def("values", static_cast<vector<double> (SumTree::*)()>(&SumTree::values))

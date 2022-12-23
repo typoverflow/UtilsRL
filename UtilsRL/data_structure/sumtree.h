@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <vector>
 #include <pybind11/pybind11.h>
+#include <utility>
 
 class SumTree {
 public: 
@@ -25,18 +26,40 @@ public:
         }
         return *this;
     }
+    SumTree& update(vector<int> idx, vector<double> new_value) {
+        for (vector<int>::size_type i=0; i != idx.size(); ++i) {
+            update(idx[i], new_value[i]);
+        }
+        return *this;
+    }
     SumTree& add(double new_value) {
         update(curr, new_value);
         curr = (curr+1) % max_size;
         valid_size = std::min(valid_size+1, max_size);
         return *this;
     }
-    int find(double target, bool scale=true) {
+    SumTree& add(std::vector<double> new_values) {
+        for (auto value: new_values) {
+            add(value);
+        }
+        return *this;
+    }
+    std::pair<int, double> find(double target, bool scale=true) {
         if (scale) target *= total();
         int tidx;
         double tvalue;
         tidx = _find_helper(target, 0, tvalue);
-        return _get_idx(tidx);
+        return make_pair(_get_idx(tidx), tvalue);
+    }
+    std::pair<std::vector<int>, std::vector<double>> find(std::vector<double> target, bool scale=true) {
+        std::vector<int> idx;
+        std::vector<double> pvalue;
+        for (auto t: target) {
+            std::pair<int, double> ret = find(t, scale);
+            idx.push_back(ret.first);
+            pvalue.push_back(ret.second);
+        }
+        return make_pair(idx, pvalue);
     }
     void show() {
         for (int d=0; d<=tree_depth; ++d) {

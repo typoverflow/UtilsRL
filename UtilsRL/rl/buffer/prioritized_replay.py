@@ -46,8 +46,7 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
 
         # update credential
         if self.metric == "propotional":
-            for m in metric_value:
-                self.credential.add(m)
+            self.credential.add(metric_value)
         elif self.metric == "rank":
             raise NotImplementedError
     
@@ -63,11 +62,11 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
                 if self.metric == "propotional":
                     total_p = self.credential.total()
                     segment = 1 / batch_size
-                    for i_seg in range(batch_size):
-                        target = (random.random() + i_seg) * segment
-                        idx, p = self.credential.find(target)
-                        batch_is.append(np.power((len(self)*p/total_p), beta))
-                        batch_idx.append(idx)
+                    batch_target = (np.random.random(size=[batch_size, ]) + np.arange(0, batch_size))*segment
+                    batch_idx, batch_p = self.credential.find(batch_target)
+                    batch_idx = np.asarray(batch_idx)
+                    batch_p = np.asarray(batch_p)
+                    batch_is = np.power((len(self)*batch_p/total_p))
             if fields is None:
                 fields = self.field_specs.keys()
             batch_idx = np.asarray(batch_idx)
@@ -85,6 +84,5 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
         if metric_value.shape == ():
             metric_value = np.asarray([metric_value, ])
         # update crendential
-        for idx, metric_v in zip(batch_idx, metric_value):
-            self.credential.update(idx, self.metric_fn(metric_v))
+        self.credential.update(batch_idx, metric_value)
                         
