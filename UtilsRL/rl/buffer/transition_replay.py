@@ -124,12 +124,16 @@ class TransitionFlexReplay(FlexReplay):
             raise ValueError(f"cannot commit {commit_num} samples, cache size is only {can_commit_num.max()}.")
         index1 = np.arange(self._committed_pointer, self._committed_pointer + commit_num) % self._committed_max_size
         index2 = np.arange(self._cache_start, self._cache_start + commit_num) % self._cache_max_size
-        for _key in self.field_specs:
-            self.committed_fields[_key][index1] = self.cache_fields[_key][index2]
-        # update pointers
+
+        # update pointers except for _cache_pointer
         self._committed_size = min(self._committed_size+commit_num, self._committed_max_size)
         self._committed_pointer = (self._committed_pointer + commit_num) % self._committed_max_size
         self._cache_start = (self._cache_start + commit_num) % self._cache_max_size 
+
+        # make the commit really happen
+        for _key in self.field_specs:
+            self.committed_fields[_key][index1] = self.cache_fields[_key][index2]
+            self._cache_pointer[_key] = self._cache_start
                 
     def random_batch(self, batch_size: Optional[int]=None, fields: Optional[Sequence[str]]=None, return_idx: bool=False):
         if len(self) == 0:
