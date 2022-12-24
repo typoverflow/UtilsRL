@@ -17,6 +17,7 @@ using namespace std;
 PYBIND11_MODULE(data_structure, m) {
     py::class_<SumTree>(m, "SumTree")
         .def(py::init<int>())
+        .def("reset", &SumTree::reset)
         .def("update", static_cast<SumTree& (SumTree::*)(int, double)>(&SumTree::update))
         .def("update", static_cast<SumTree& (SumTree::*)(vector<int>, vector<double>)>(&SumTree::update))
         .def("add", static_cast<SumTree& (SumTree::*)(vector<double>)>(&SumTree::add))

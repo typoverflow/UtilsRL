@@ -16,6 +16,12 @@ public:
         node_size = pow(2, tree_depth) - 1;
         tree_body.assign(tree_size, 0);
     }
+    SumTree& reset() {
+        curr = 0;
+        valid_size = 0;
+        tree_body.assign(tree_size, 0);
+        return *this;
+    }
     SumTree& update(int idx, double new_value) {
         int tidx = _get_tree_idx(idx);
         double diff = new_value - tree_body[tidx];
