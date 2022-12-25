@@ -32,8 +32,8 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             raise ValueError(f"PER only supports proportional or rank-based.")
         
     def reset(self):
+        self.credential.reset()
         super().reset()
-        self.credential = self.credential_cls(self._max_size) # TODO: reset in C Structure
         
     def add_sample(self, data_dict: DictLike, metric_value: Union[Sequence, float]):
         metric_value = np.asarray(metric_value)
@@ -122,7 +122,7 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
         return self._committed_size
     
     def reset_committed(self):
-        self.credential = self.credential_cls(self._committed_max_size)  # TODO: reset in C Structure
+        self.credential.reset()
         super().reset_committed()
         
     def commit(self, commit_num: Optional[int]=None):
