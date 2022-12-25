@@ -26,6 +26,7 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             self.credential = self.credential_cls(self._max_size)
             self.metric_fn = lambda x: proportional(x, alpha)
             self.alpha = alpha
+            self.max_metric_value = 1
         elif metric == "rank":
             raise NotImplementedError
         else:
@@ -35,20 +36,20 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
         self.credential.reset()
         super().reset()
         
-    def add_sample(self, data_dict: DictLike, metric_value: Union[Sequence, float]):
-        metric_value = np.asarray(metric_value)
-        if metric_value.shape == ():
-            metric_value = np.asarray([metric_value, ])
-        data_len = len(metric_value)
-        index_to_go = np.arange(self._pointer, self._pointer+data_len) % self._max_size
+    def add_sample(self, data_dict: DictLike):
+        data_len = None
+        index_to_go = None
         for (_key, _data)in data_dict.items():
+            if data_len is None:
+                data_len = _data.reshape([-1, ]+list(self.field_specs[_key]["shape"])).shape[0]
+                index_to_go = np.arange(self._pointer, self._pointer+data_len) % self._max_size
             self.fields[_key][index_to_go] = _data
         self._pointer = (self._pointer + data_len) % self._max_size
         self._size = min(self._size + data_len, self._max_size)
 
         # update credential
         if self.metric == "proportional":
-            self.credential.add(metric_value)
+            self.credential.add(np.full(shape=[data_len, ], fill_value=self.metric_fn(self.max_metric_value)))
         elif self.metric == "rank":
             raise NotImplementedError
     
@@ -68,7 +69,7 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
                     batch_idx, batch_p = self.credential.find(batch_target)
                     batch_idx = np.asarray(batch_idx)
                     batch_p = np.asarray(batch_p)
-                    batch_is = np.power((len(self)*batch_p/total_p))
+                    batch_is = np.power((len(self)*batch_p/total_p), (-beta))
             if fields is None:
                 fields = self.field_specs.keys()
             batch_idx = np.asarray(batch_idx)
@@ -86,7 +87,8 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
         if metric_value.shape == ():
             metric_value = np.asarray([metric_value, ])
         # update crendential
-        self.credential.update(batch_idx, metric_value)
+        self.max_metric_value = max(metric_value, self.max_metric_value)
+        self.credential.update(batch_idx, self.metric_fn(metric_value))
 
         
 class PrioritizedFlexReplay(TransitionFlexReplay):
@@ -113,6 +115,7 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             self.credential = self.credential_cls(self._committed_max_size)
             self.metric_fn = lambda x: proportional(x, alpha)
             self.alpha = alpha
+            self.max_metric_value = 1
         elif metric == "rank":
             raise NotImplementedError
         else:
@@ -144,7 +147,7 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             self._cache_pointer[_key] = self._cache_start
         # update credential
         if self.metric == "proportional":
-            self.credential.add(self.cache_fields[index2])
+            self.credential.add(np.full(shape=[commit_num, ], fill_value=self.metric_fn(self.max_metric_value)))
         elif self.metric == "rank":
             raise NotImplementedError
         
@@ -164,7 +167,7 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
                     batch_idx, batch_p = self.credential.find(batch_target)
                     batch_idx = np.asarray(batch_idx)
                     batch_p = np.asarray(batch_p)
-                    batch_is = np.power((len(self)*batch_p/total_p))
+                    batch_is = np.power((len(self)*batch_p/total_p), (-beta))
             if fields is None:
                 fields = self.field_specs.keys()
             batch_idx = np.asarray(batch_idx)
@@ -182,4 +185,5 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
         if metric_value.shape == ():
             metric_value = np.asarray([metric_value, ])
         # update crendential
-        self.credential.update(batch_idx, metric_value)
+        self.max_metric_value = max(metric_value, self.max_metric_value)
+        self.credential.update(batch_idx, self.metric_fn(metric_value))
