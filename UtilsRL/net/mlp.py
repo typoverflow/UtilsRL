@@ -44,7 +44,7 @@ class MLP(nn.Module):
         ):
             model += miniblock(in_dim, out_dim, norm, activ, device=device, linear_layer=linear_layer)
         if output_dim > 0:
-            model += [nn.Linear(hidden_dims[-1], output_dim, device=device)]
+            model += [linear_layer(hidden_dims[-1], output_dim, device=device)]
         self.output_dim = output_dim or hidden_dims[-1]
         
         self.model = nn.Sequential(*model)

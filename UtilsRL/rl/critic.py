@@ -115,6 +115,7 @@ class C51DQN(nn.Module):
     def forward(self, state: torch.Tensor):
         dist = self.dist(state)
         q = torch.sum(dist * self.support, dim=2)
+        return q
         
     def dist(self, state: torch.Tensor):
         o_backend = self.backend(state)
