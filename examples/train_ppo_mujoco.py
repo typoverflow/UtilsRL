@@ -166,6 +166,7 @@ tot_env_step = 0
 # traj_length = traj_return = 0
 env = gym.make(task)
 for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
+    buffer.reset()
     obs, done = env.reset(), False
     # sample_ph = buffer.get_placeholder(args.sample_per_epoch)
     traj_length = traj_return = traj_start = 0
