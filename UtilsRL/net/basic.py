@@ -80,37 +80,49 @@ class NoisyLinear(nn.Linear):
         self.std_init = std_init
         self.register_parameter("weight_std", torch.nn.Parameter(torch.empty(out_features, in_features)))
         self.weight_std.data.fill_(self.std_init / math.sqrt(self.in_features))
+        self.register_buffer("weight_noise", torch.empty_like(self.weight))
         if bias:
             self.register_parameter("bias_std", torch.nn.Parameter(torch.empty(out_features)))
             self.bias_std.data.fill_(self.std_init / math.sqrt(self.out_features))
+            self.register_buffer("bias_noise", torch.empty_like(self.bias))
         else:
             self.register_parameter("bias_std", None)
+            self.register_buffer("bias_noise", None)
+        
+        self.reset_noise()
 
     @staticmethod
     def scaled_noise(size: int):
         x = torch.randn(size)
         return x.sign().mul(x.abs().sqrt())
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, reset_noise=False):
         if self.training:
-            epsilon_in = self.scaled_noise(self.in_features)
-            epsilon_out = self.scaled_noise(self.out_features)
-            epsilon_w = torch.matmul(
-                torch.unsqueeze(epsilon_out, -1), other=torch.unsqueeze(epsilon_in, 0)
-            ).to(self.weight.data.device)
+            if reset_noise:
+                self.reset_noise()
             if self.bias is not None:
-                epsilon_b = epsilon_out.to(self.weight.data.device)
                 return torch.nn.functional.linear(
-                    x, 
-                    self.weight + self.weight_std * epsilon_w, 
-                    self.bias + self.bias_std * epsilon_b
-                )
+                        x, 
+                        self.weight + self.weight_std * self.weight_noise, 
+                        self.bias + self.bias_std * self.bias_noise
+                    )
             else:
                 return torch.nn.functional.linear(
                     x, 
-                    self.weight + self.weight_std * epsilon_w, 
+                    self.weight + self.weight_std * self.weight_noise, 
                     None
                 )
         else:
             return torch.nn.functional.linear(x, self.weight, self.bias)
+        
+    def reset_noise(self):
+        device = self.weight.data.device
+        epsilon_in = self.scaled_noise(self.in_features)
+        epsilon_out = self.scaled_noise(self.out_features)
+        self.weight_noise.data = torch.matmul(
+            torch.unsqueeze(epsilon_out, -1), other=torch.unsqueeze(epsilon_in, 0)
+        ).to(device)
+        if self.bias is not None:
+            self.bias_noise.data = epsilon_out.to(device)
+        
         
