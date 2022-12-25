@@ -22,8 +22,9 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
         self.metric = metric
         if metric == "proportional":
             from UtilsRL.data_structure.data_structure import SumTree as CSumTree
-            self.credential_cls = CSumTree
-            self.credential = self.credential_cls(self._max_size)
+            from UtilsRL.data_structure.data_structure import MinTree as CMinTree
+            self.sum_tree = CSumTree(self._max_size)
+            self.min_tree = CMinTree(self._max_size)
             self.metric_fn = lambda x: proportional(x, alpha)
             self.alpha = alpha
             self.max_metric_value = 1
@@ -33,7 +34,11 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             raise ValueError(f"PER only supports proportional or rank-based.")
         
     def reset(self):
-        self.credential.reset()
+        if self.metric == "proportional":
+            self.sum_tree.reset()
+            self.min_tree.reset()
+        else:
+            raise NotImplementedError
         super().reset()
         
     def add_sample(self, data_dict: DictLike):
@@ -49,7 +54,8 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
 
         # update credential
         if self.metric == "proportional":
-            self.credential.add(np.full(shape=[data_len, ], fill_value=self.metric_fn(self.max_metric_value)))
+            self.sum_tree.add(np.full(shape=[data_len, ], fill_value=self.metric_fn(self.max_metric_value)))
+            self.min_tree.add(np.full(shape=[data_len, ], fill_value=self.metric_fn(self.max_metric_value)))
         elif self.metric == "rank":
             raise NotImplementedError
     
@@ -63,13 +69,14 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
                 batch_is = []
                 batch_idx = []
                 if self.metric == "proportional":
-                    total_p = self.credential.total()
+                    sum_tree_total = self.sum_tree.total()
+                    min_prob = self.min_tree.min() / sum_tree_total
                     segment = 1 / batch_size
                     batch_target = (np.random.random(size=[batch_size, ]) + np.arange(0, batch_size))*segment
-                    batch_idx, batch_p = self.credential.find(batch_target)
+                    batch_idx, batch_p = self.sum_tree.find(batch_target)
                     batch_idx = np.asarray(batch_idx)
-                    batch_p = np.asarray(batch_p)
-                    batch_is = np.power((len(self)*batch_p/total_p), (-beta))
+                    batch_prob = np.asarray(batch_p) / sum_tree_total
+                    batch_is = np.power((len(self)*batch_prob), (-beta)) / np.power((len(self)*min_prob), (-beta))
             if fields is None:
                 fields = self.field_specs.keys()
             batch_idx = np.asarray(batch_idx)
@@ -88,7 +95,8 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             metric_value = np.asarray([metric_value, ])
         # update crendential
         self.max_metric_value = max(metric_value, self.max_metric_value)
-        self.credential.update(batch_idx, self.metric_fn(metric_value))
+        self.sum_tree.update(batch_idx, self.metric_fn(metric_value))
+        self.min_tree.update(batch_idx, self.metric_fn(metric_value))
 
         
 class PrioritizedFlexReplay(TransitionFlexReplay):
@@ -111,8 +119,9 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
         self.metric_key = metric
         if metric == "proportional":
             from UtilsRL.data_structure.data_structure import SumTree as CSumTree
-            self.credential_cls = CSumTree
-            self.credential = self.credential_cls(self._committed_max_size)
+            from UtilsRL.data_structure.data_structure import MinTree as CMinTree
+            self.sum_tree = CSumTree(self._committed_max_size)
+            self.min_tree = CMinTree(self._committed_max_size)
             self.metric_fn = lambda x: proportional(x, alpha)
             self.alpha = alpha
             self.max_metric_value = 1
@@ -125,7 +134,11 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
         return self._committed_size
     
     def reset_committed(self):
-        self.credential.reset()
+        if self.metric == "proportional":
+            self.sum_tree.reset()
+            self.min_tree.reset()
+        else:
+            raise NotImplementedError
         super().reset_committed()
         
     def commit(self, commit_num: Optional[int]=None):
@@ -147,7 +160,8 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             self._cache_pointer[_key] = self._cache_start
         # update credential
         if self.metric == "proportional":
-            self.credential.add(np.full(shape=[commit_num, ], fill_value=self.metric_fn(self.max_metric_value)))
+            self.sum_tree.add(np.full(shape=[commit_num, ], fill_value=self.metric_fn(self.max_metric_value)))
+            self.min_tree.add(np.full(shape=[commit_num, ], fill_value=self.metric_fn(self.max_metric_value)))
         elif self.metric == "rank":
             raise NotImplementedError
         
@@ -161,13 +175,14 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
                 batch_is = []
                 batch_idx = []
                 if self.metric == "proportional":
-                    total_p = self.credential.total()
+                    sum_tree_total = self.sum_tree.total()
+                    min_prob = self.min_tree.min() / sum_tree_total
                     segment = 1 / batch_size
                     batch_target = (np.random.random(size=[batch_size, ]) + np.arange(0, batch_size))*segment
-                    batch_idx, batch_p = self.credential.find(batch_target)
+                    batch_idx, batch_p = self.sum_tree.find(batch_target)
                     batch_idx = np.asarray(batch_idx)
-                    batch_p = np.asarray(batch_p)
-                    batch_is = np.power((len(self)*batch_p/total_p), (-beta))
+                    batch_prob = np.asarray(batch_p) / sum_tree_total
+                    batch_is = np.power((len(self)*batch_prob), (-beta)) / np.power((len(self)*min_prob), (-beta))
             if fields is None:
                 fields = self.field_specs.keys()
             batch_idx = np.asarray(batch_idx)
@@ -186,4 +201,5 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             metric_value = np.asarray([metric_value, ])
         # update crendential
         self.max_metric_value = max(metric_value, self.max_metric_value)
-        self.credential.update(batch_idx, self.metric_fn(metric_value))
+        self.sum_tree.update(batch_idx, self.metric_fn(metric_value))
+        self.min_tree.update(batch_idx, self.metric_fn(metric_value))

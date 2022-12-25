@@ -1,78 +1,68 @@
-#ifndef UTILSRL_DATA_STRUCTURE_SUMTREE
-#define UTILSRL_DATA_STRUCTURE_SUMTREE
+#ifndef UTILSRL_DATA_STRUCTURE_MINTREE
+#define UTILSRL_DATA_STRUCTURE_MINTREE
 
 #include <cmath>
 #include <stdexcept>
 #include <vector>
 #include <pybind11/pybind11.h>
 #include <utility>
-#include <algorithm>
+#include <climits>
 
-class SumTree {
+class MinTree {
 public: 
-    SumTree(int max_size): max_size(max_size), valid_size(0), curr(0) {
+    MinTree(int max_size): max_size(max_size), valid_size(0), curr(0) {
         if (max_size <= 0) throw std::invalid_argument("`max_size` of the sum tree cannot be zero!");
         tree_depth = ceil(log2(this->max_size)); 
         tree_size = pow(2, tree_depth+1) - 1;
         node_size = pow(2, tree_depth) - 1;
-        tree_body.assign(tree_size, 0);
+        tree_body.assign(tree_size, std::numeric_limits<double>::max());
     }
-    SumTree& reset() {
+    MinTree& reset() {
         curr = 0;
         valid_size = 0;
-        tree_body.assign(tree_size, 0);
+        tree_body.assign(tree_size, std::numeric_limits<double>::max());
         return *this;
     }
-    SumTree& update(int idx, double new_value) {
+    MinTree& update(int idx, double new_value) {
         int tidx = _get_tree_idx(idx);
-        double diff = new_value - tree_body[tidx];
-        tree_body[tidx] += diff;
+        tree_body[tidx] = new_value;
         for (; (tidx-1) >= 0; ){
             tidx = _father(tidx);
-            tree_body[tidx] += diff;
+            double old_value = tree_body[tidx];
+            double left_value = tree_body[_left(tidx)];
+            double right_value = tree_body[_right(tidx)];
+            tree_body[tidx] = left_value < right_value? left_value : right_value;
+            if (tree_body[tidx] == old_value)
+                break;
         }
         return *this;
     }
-    SumTree& update(vector<int> idx, vector<double> new_value) {
+    MinTree& update(vector<int> idx, vector<double> new_value) {
         for (vector<int>::size_type i=0; i != idx.size(); ++i) {
             update(idx[i], new_value[i]);
         }
         return *this;
     }
-    SumTree& add(double new_value) {
+    MinTree& add(double new_value) {
         valid_size = std::min(valid_size+1, max_size);
         update(curr, new_value);
         curr = (curr+1) % max_size;
         return *this;
     }
-    SumTree& add(std::vector<double> new_values) {
+    MinTree& add(std::vector<double> new_values) {
         for (auto value: new_values) {
             add(value);
         }
         return *this;
     }
-    std::pair<int, double> find(double target, bool scale=true) {
-        if (scale) target *= total();
-        int tidx;
-        double tvalue;
-        tidx = _find_helper(target, 0, tvalue);
-        return make_pair(_get_idx(tidx), tvalue);
-    }
-    std::pair<std::vector<int>, std::vector<double>> find(std::vector<double> target, bool scale=true) {
-        std::vector<int> idx;
-        std::vector<double> pvalue;
-        for (auto t: target) {
-            std::pair<int, double> ret = find(t, scale);
-            idx.push_back(ret.first);
-            pvalue.push_back(ret.second);
-        }
-        return make_pair(idx, pvalue);
-    }
     void show() {
         for (int d=0; d<=tree_depth; ++d) {
             printf("[Depth %d]: ", d);
             for (int i=0; i<std::pow(2, d); ++i)
-                printf("%.3f  ", tree_body[i+std::pow(2, d)-1]);
+                if (tree_body[i+std::pow(2, d)-1] == std::numeric_limits<double>::max())
+                    printf("NaN  ");
+                else
+                    printf("%.3f  ", tree_body[i+std::pow(2, d)-1]);
             printf(" \n");
         }
     }
@@ -82,6 +72,7 @@ public:
 
     std::vector<double> values(int start, int end) {
         if (end > this->valid_size) end = this->valid_size;
+        printf("%d", this->curr);
         auto vstart = this->tree_body.end() - (tree_size - node_size) + start;
         auto vend = this->tree_body.end() - (tree_size - node_size) + end;
         return std::vector<double>(vstart, vend);
@@ -94,8 +85,7 @@ public:
         }
         return v;
     }
-    inline double total() {return tree_body[0];}
-    inline double min() {return *std::min_element(tree_body.begin()+_get_tree_idx(0), tree_body.begin()+_get_tree_idx(valid_size));}
+    inline double min() {return tree_body[0];}
 private:
     int max_size; 
     int tree_depth; 
@@ -110,16 +100,6 @@ private:
     inline int _father(const int tree_idx) {return (tree_idx-1)/2;}
     inline int _get_tree_idx(const int idx) {return node_size + idx;}
     inline int _get_idx(const int tidx) {return tidx - node_size;}
-
-    int _find_helper(double target, int tidx, double& value) {
-        if (_left(tidx) >= tree_size) {
-            value = tree_body[tidx];
-            return tidx;
-        }
-        double left_value = tree_body[_left(tidx)];
-        if (target <= left_value) return _find_helper(target, _left(tidx), value);
-        else return _find_helper(target - left_value, _right(tidx), value);
-    }
 };
 
 #endif
