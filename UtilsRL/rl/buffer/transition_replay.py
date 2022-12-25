@@ -117,11 +117,11 @@ class TransitionFlexReplay(FlexReplay):
 
     def commit(self, commit_num: Optional[int]=None):
         can_commit_num = np.unique(np.asarray([(p-self._cache_start)%self._cache_max_size for _, p in self._cache_pointer.items()]))
-        if len(can_commit_num) != 1:
-            logger.log_str(f"buffer: commit different size of samples", type="warning")
-        commit_num = commit_num or can_commit_num.max()
-        if commit_num > can_commit_num.max():
-            raise ValueError(f"cannot commit {commit_num} samples, cache size is only {can_commit_num.max()}.")
+        # if len(can_commit_num) != 1:
+            # logger.log_str(f"buffer: commit different size of samples", type="warning")
+        commit_num = commit_num or can_commit_num.min()
+        if commit_num > can_commit_num.min():
+            raise ValueError(f"cannot commit {commit_num} samples, cache size is only {can_commit_num.min()}.")
         index1 = np.arange(self._committed_pointer, self._committed_pointer + commit_num) % self._committed_max_size
         index2 = np.arange(self._cache_start, self._cache_start + commit_num) % self._cache_max_size
 
@@ -133,7 +133,8 @@ class TransitionFlexReplay(FlexReplay):
         # make the commit really happen
         for _key in self.field_specs:
             self.committed_fields[_key][index1] = self.cache_fields[_key][index2]
-            self._cache_pointer[_key] = self._cache_start
+            # self._cache_pointer[_key] = self._cache_start
+        return commit_num
                 
     def random_batch(self, batch_size: Optional[int]=None, fields: Optional[Sequence[str]]=None, return_idx: bool=False):
         if len(self) == 0:
@@ -152,14 +153,13 @@ class TransitionFlexReplay(FlexReplay):
         return (batch_data, batch_idx) if return_idx else batch_data
     
     def get_cache_data(self, num: Optional[int]=None):
-        can_get_num = np.unique(np.asarray([(p-self._cache_start)%self._cache_max_size for _, p in self._cache_pointer.items()]))
-        num = num or can_get_num.max()
-        if num > can_get_num.max():
-            raise ValueError(f"cannot get {num} samples, cache size is only {can_get_num.max()}")
-        index = np.arange(self._cache_start, self._cache_start + num) % self._cache_max_size
-        ret = {
-            _key: self.cache_fields[_key][index] \
-                for _key, _pointer in self._cache_pointer.items() if _pointer != self._cache_start
-        }
+        ret = {}
+        num = num or np.inf
+        for _key, _pointer in self._cache_pointer.items():
+            can_get_num = (_pointer - self._cache_start) % self._cache_max_size
+            get_num = min(num, can_get_num)
+            ret[_key] = self.cache_fields[_key][
+                np.arange(self._cache_start, self._cache_start + get_num) % self._cache_max_size
+            ]
         return ret
     

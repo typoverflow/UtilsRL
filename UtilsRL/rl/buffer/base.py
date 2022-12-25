@@ -43,7 +43,6 @@ class SimpleReplay(ABC):
         self._max_size = int(max_size)
         self._size = 0
         self.add_fields(field_specs)
-        self.reset()
                 
     def __len__(self):
         return self._size
@@ -79,7 +78,6 @@ class FlexReplay(ABC):
         self._cache_start = 0
         
         self.add_fields(field_specs)
-        self.reset()
         
     def reset(self):
         self.reset_committed()

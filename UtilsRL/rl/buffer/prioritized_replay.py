@@ -20,9 +20,10 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
                  *args, **kwargs):
         super().__init__(max_size, field_specs, *args, **kwargs)
         self.metric = metric
+        
         if metric == "proportional":
-            from UtilsRL.data_structure.data_structure import SumTree as CSumTree
-            from UtilsRL.data_structure.data_structure import MinTree as CMinTree
+            from UtilsRL.data_structure import SumTree as CSumTree
+            from UtilsRL.data_structure import MinTree as CMinTree
             self.sum_tree = CSumTree(self._max_size)
             self.min_tree = CMinTree(self._max_size)
             self.metric_fn = lambda x: proportional(x, alpha)
@@ -32,6 +33,8 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             raise NotImplementedError
         else:
             raise ValueError(f"PER only supports proportional or rank-based.")
+
+        self.reset()
         
     def reset(self):
         if self.metric == "proportional":
@@ -66,7 +69,6 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             if batch_size is None:
                 raise NotImplementedError(f"you must specify a batch size for PER for now.")
             else:
-                batch_is = []
                 batch_idx = []
                 if self.metric == "proportional":
                     sum_tree_total = self.sum_tree.total()
@@ -79,8 +81,6 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
                     batch_is = np.power((len(self)*batch_prob), (-beta)) / np.power((len(self)*min_prob), (-beta))
             if fields is None:
                 fields = self.field_specs.keys()
-            batch_idx = np.asarray(batch_idx)
-            batch_is = np.asarray(batch_is)
             batch_data = {
                 _key: self.fields[_key][batch_idx] for _key in fields
             }
@@ -106,20 +106,14 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
                  metric: str="proportional", 
                  alpha: float=0.2, 
                  cache_max_size: Optional[int]=None, 
-                 metric_key: str="metric_value", 
+                #  metric_key: str="metric_value", 
                  *args, **kwargs):
         field_specs = field_specs or {}
-        if not metric_key in field_specs:
-            field_specs[metric_key] = {
-                "shape": [1, ], 
-                "dtype": np.float32
-            }
-        super().__init__(self, max_size, field_specs, cache_max_size, *args, **kwargs)
+        super().__init__(max_size, field_specs, cache_max_size, *args, **kwargs)
         self.metric = metric
-        self.metric_key = metric
         if metric == "proportional":
-            from UtilsRL.data_structure.data_structure import SumTree as CSumTree
-            from UtilsRL.data_structure.data_structure import MinTree as CMinTree
+            from UtilsRL.data_structure import SumTree as CSumTree
+            from UtilsRL.data_structure import MinTree as CMinTree
             self.sum_tree = CSumTree(self._committed_max_size)
             self.min_tree = CMinTree(self._committed_max_size)
             self.metric_fn = lambda x: proportional(x, alpha)
@@ -129,6 +123,8 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             raise NotImplementedError
         else:
             raise ValueError(f"PER only supports proportinal or rank-based.")
+        
+        self.reset()
         
     def __len__(self):
         return self._committed_size
@@ -142,22 +138,7 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
         super().reset_committed()
         
     def commit(self, commit_num: Optional[int]=None):
-        can_commit_num = (self._cache_start[self.metric_key] - self._cache_start) % self._cache_max_size
-        commit_num = commit_num or can_commit_num
-        if commit_num > can_commit_num:
-            raise ValueError(f"cannot commit {commit_num} samples, cache size is only {can_commit_num}.")
-        index1 = np.arange(self._committed_pointer, self._committed_pointer + commit_num) % self._committed_max_size
-        index2 = np.arange(self._cache_start, self._cache_start + commit_num) % self._cache_max_size
-
-        # update pointers except for _cache_pointer
-        self._committed_size = min(self._committed_size+commit_num, self._committed_max_size)
-        self._committed_pointer = (self._committed_pointer + commit_num) % self._committed_max_size
-        self._cache_start = (self._cache_start + commit_num) % self._cache_max_size 
-
-        # make the commit really happen
-        for _key in self.field_specs:
-            self.committed_fields[_key][index1] = self.cache_fields[_key][index2]
-            self._cache_pointer[_key] = self._cache_start
+        commit_num = super().commit(commit_num)
         # update credential
         if self.metric == "proportional":
             self.sum_tree.add(np.full(shape=[commit_num, ], fill_value=self.metric_fn(self.max_metric_value)))
@@ -172,7 +153,6 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             if batch_size is None:
                 raise NotImplementedError(f"you must specify a batch size for PER for now.")
             else:
-                batch_is = []
                 batch_idx = []
                 if self.metric == "proportional":
                     sum_tree_total = self.sum_tree.total()
@@ -185,8 +165,6 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
                     batch_is = np.power((len(self)*batch_prob), (-beta)) / np.power((len(self)*min_prob), (-beta))
             if fields is None:
                 fields = self.field_specs.keys()
-            batch_idx = np.asarray(batch_idx)
-            batch_is = np.asarray(batch_is)
             batch_data = {
                 _key: self.committed_fields[_key][batch_idx] for _key in fields
             }
@@ -200,6 +178,6 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
         if metric_value.shape == ():
             metric_value = np.asarray([metric_value, ])
         # update crendential
-        self.max_metric_value = max(metric_value, self.max_metric_value)
+        self.max_metric_value = max(np.max(metric_value), self.max_metric_value)
         self.sum_tree.update(batch_idx, self.metric_fn(metric_value))
         self.min_tree.update(batch_idx, self.metric_fn(metric_value))
