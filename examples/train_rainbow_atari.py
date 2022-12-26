@@ -31,16 +31,16 @@ task = args.task
 env = RewardClip(
         FrameStack(
             AtariPreprocessing(
-                gym.make(task), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = True
+                gym.make(task), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
             ), num_stack=args.frame_stack
         ), args.reward_min, args.reward_max
 )
 eval_env = RewardClip(
         FrameStack(
             AtariPreprocessing(
-                gym.make(task), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = True
+                gym.make(task), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
             ), num_stack=args.frame_stack
-        ), args.reward_min, args.reward_max
+        ), args.reward_min, args.reward_max, eval=True
 )
 args["observation_space"] = env.observation_space
 args["action_space"] = env.action_space
@@ -52,7 +52,7 @@ np_ftype, torch_ftype = args.UtilsRL.numpy_fp, args.UtilsRL.torch_fp
 # %%
 # 3. Define the agent and buffer
 from UtilsRL.rl.buffer import PrioritizedSimpleReplay, PrioritizedFlexReplay, convert_space_to_spec
-from UtilsRL.net.cnn import AtariConv2d, atari_conv2d_out_size
+from UtilsRL.net.cnn import CNN, conv2d_out_size
 from UtilsRL.net.basic import NoisyLinear
 from UtilsRL.net.utils import reset_noise_layer
 from UtilsRL.rl.critic import C51DQN
@@ -74,6 +74,7 @@ class RainbowAgent():
         self.gamma = args.gamma
         self.batch_size = args.batch_size
         self.prior_eps = args.prior_eps
+        self.traj_limit = args.max_episode_length
         
         # epsilon greedy
         self.epsilon = args.max_epsilon
@@ -98,10 +99,13 @@ class RainbowAgent():
         self.v_min = args.v_min
         self.v_max = args.v_max
         self.atom_size = args.atom_size
-        dqn_backend = AtariConv2d(input_channel=args.frame_stack*(3 if args.use_rgb else 1), output_channel=args.output_channel)
-        conv2d_out_size = args.output_channel * (atari_conv2d_out_size ** 2)
+        dqn_backend = CNN(input_channel=args.frame_stack*(3 if args.use_rgb else 1), channels=args.channels, kernels = args.kernels, strides=args.strides)
+        linear_size = 84
+        for k, s in zip(args.kernels, args.strides):
+            linear_size = conv2d_out_size(linear_size, k, s)
+        linear_size = linear_size*linear_size * args.channels[-1]
         self.dqn = C51DQN(backend=dqn_backend, 
-                          input_dim=conv2d_out_size, 
+                          input_dim=linear_size, 
                           output_dim_adv=args.action_space.n, 
                           output_dim_value=1, 
                           num_atoms=args.atom_size, 
@@ -111,9 +115,9 @@ class RainbowAgent():
                           linear_layer=NoisyLinear if args.use_noisy else nn.Linear
                           ).to(args.device)
         if self.use_double:
-            dqn_target_backend = AtariConv2d(input_channel=args.frame_stack*(3 if args.use_rgb else 1), output_channel=args.output_channel)
+            dqn_target_backend = CNN(input_channel=args.frame_stack*(3 if args.use_rgb else 1), channels=args.channels, kernels = args.kernels, strides=args.strides)
             self.dqn_target = C51DQN(backend=dqn_target_backend, 
-                                input_dim=conv2d_out_size, 
+                                input_dim=linear_size, 
                                 output_dim_adv=args.action_space.n, 
                                 output_dim_value=1, 
                                 num_atoms=args.atom_size, 
@@ -125,8 +129,9 @@ class RainbowAgent():
             self.dqn_target.load_state_dict(self.dqn.state_dict())
         else:
             self.dqn_target = self.dqn
-        self.optimizer = optim.Adam(self.dqn.parameters(), lr=args.lr)
+        self.optimizer = optim.Adam(self.dqn.parameters(), lr=args.lr, eps=1.5e-4)
         
+    @torch.no_grad()
     def get_action(self, state: np.ndarray, deterministic=False):
         if not deterministic and self.epsilon > np.random.random():
             selected_action = args.action_space.sample()
@@ -138,15 +143,11 @@ class RainbowAgent():
             selected_action = selected_action.detach().cpu().numpy()
         return selected_action
     
-    def update_epsilon(self):
-        self.epsilon = max(
-            self.min_epsilon, self.epsilon - (self.max_epsilon -  self.min_epsilon) * self.epsilon_decay
-        )
+    def update_epsilon(self, step):
+        self.epsilon = max(self.max_epsilon - self.epsilon_decay * step, self.min_epsilon)
         
-    def update_beta(self):
-        self.beta = min(
-            self.max_beta, self.beta + (self.max_beta - self.min_beta) * self.beta_decay
-        )
+    def update_beta(self, step):
+        self.beta = min(self.min_beta + self.beta_decay * step, self.max_beta)
     
     def rainbow_update(self, batch_data, batch_is):
         batch_is = torch.from_numpy(batch_is).float().to(self.device)
@@ -206,13 +207,14 @@ class RainbowAgent():
         traj_lengths = []
         traj_return = 0
         traj_length = 0
+        traj_limit = self.traj_limit
         for i in range(eval_num):
             obs, done = env.reset(), False
             while True:
-                obs, reward, done, _ = env.step(self.get_action(obs))
+                obs, reward, done, _ = env.step(self.get_action(obs, deterministic=True))
                 traj_return += reward
                 traj_length += 1
-                if done:
+                if done or traj_length >= traj_limit:
                     traj_returns.append(traj_return)
                     traj_lengths.append(traj_length)
                     break
@@ -228,10 +230,12 @@ from collections import deque
 from UtilsRL.monitor import Monitor
 batch_size = args.batch_size
 n_step, use_n_step = args.n_step, args.use_n_step
+traj_limit = args.max_episode_length
 logger: TensorboardLogger = args.logger
 tot_env_step = 0
 tot_agent_step = 0
 traj_return = 0
+traj_length = 0
 best_score = -np.inf
 best_model = None
 obs, done = env.reset(), False
@@ -240,7 +244,8 @@ reward_buffer = deque(maxlen=n_step)
 for frame_idx in Monitor("train").listen(range(1, args.num_frames+1)):
     action = agent.get_action(obs)
     next_obs, reward, done, _ = env.step(action)
-    traj_return += reward
+    # traj_return += reward
+    traj_length += 1
 
     buffer.add_sample({
         "obs": obs, 
@@ -256,8 +261,13 @@ for frame_idx in Monitor("train").listen(range(1, args.num_frames+1)):
             })
             buffer.commit(1)
     
-    agent.update_beta()
-    agent.update_epsilon()
+    agent.update_beta(frame_idx)
+    agent.update_epsilon(frame_idx)
+    
+    if traj_length == traj_limit and not done:
+        buffer.reset_cache()
+        next_obs = env.reset()
+        traj_length = 0
     
     if done:
         while len(reward_buffer) > 1:
@@ -270,19 +280,20 @@ for frame_idx in Monitor("train").listen(range(1, args.num_frames+1)):
         reward_buffer.popleft()
         buffer.commit(n_step - 1)
         next_obs = env.reset()
-        traj_return = 0
+        traj_length = 0
         
     obs = next_obs
     
     if frame_idx < args.warmup_frame:
         continue
     
-    batch_data, batch_is, batch_idx = buffer.random_batch(batch_size, beta=agent.beta)
-    train_loss, batch_metric = agent.rainbow_update(batch_data, batch_is)
-    buffer.batch_update(batch_idx, batch_metric)
-    tot_agent_step += 1
-    if args.use_double and tot_agent_step % args.target_update_interval == 0:
-        agent.target_hard_update()
+    if frame_idx % args.update_every == 0:
+        batch_data, batch_is, batch_idx = buffer.random_batch(batch_size, beta=agent.beta)
+        train_loss, batch_metric = agent.rainbow_update(batch_data, batch_is)
+        buffer.batch_update(batch_idx, batch_metric)
+        tot_agent_step += 1
+        if args.use_double and tot_agent_step % args.target_update_interval == 0:
+            agent.target_hard_update()
     
     if frame_idx % args.log_interval == 0:
         logger.log_scalars("Train", train_loss, step=frame_idx)

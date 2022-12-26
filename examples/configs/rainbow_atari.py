@@ -14,33 +14,35 @@ use_per = True
 use_n_step = True
 use_rgb = False
 n_step = 3
+scale_obs = False
 
-
-num_frames = 20000000
-warmup_frame = 80000
+update_every = 4
+max_episode_length = 108000
+num_frames = 50000000
+warmup_frame = 20000
 frame_stack = 4
 frame_skip = 4
 buffer_size = 1e6
-target_update_interval = 3200
+target_update_interval = 2000
 eval_interval = 10000
-log_interval = 5000
+log_interval = 10000
 eval_num = 5
 batch_size = 64
 gamma = 0.99
 alpha = 0.5
 beta = 0.4
 prior_eps = 1e-6
-lr = 0.0001
+lr = 0.0000625
 
 # epsilon
 max_epsilon = 0.5
 min_epsilon = 0.01
-epsilon_decay = 2.5e-7
+epsilon_decay = (max_epsilon - min_epsilon) / num_frames
 
 # beta
 max_beta = 1
-min_beta = 0.6
-beta_decay = 2e-7
+min_beta = 0.4
+beta_decay = (max_beta - min_beta) / num_frames
 
 # reward clip
 reward_min = None
@@ -53,6 +55,9 @@ atom_size = 51
 
 output_channel = 64
 hidden_dims = [512, ]
+channels = [32, 64, 64]
+kernels = [8, 4, 3]
+strides = [4, 2, 1]
 
 
 

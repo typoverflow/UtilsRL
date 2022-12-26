@@ -38,3 +38,42 @@ class AtariConv2d(nn.Module):
 
 atari_conv2d_out_size = conv2d_out_size(conv2d_out_size(conv2d_out_size(84, 8, 4), 4, 2), 3, 1)
         
+
+class CNN(nn.Module):
+    def __init__(
+        self, 
+        input_channel: int, 
+        channels: Union[Sequence[int], int]=[], 
+        kernels: Union[Sequence[int], int]=[], 
+        strides: Union[Sequence[int], int]=[], 
+        activate_last: bool=True, 
+        device: Union[str, int, torch.device]="cpu"
+    ) -> None:
+        super().__init__()
+        self.input_channel = input_channel
+        if isinstance(channels, int):
+            channels = [channels, ]
+        if isinstance(kernels, int):
+            kernels = [kernels, ]
+        if isinstance(strides, int):
+            strides = [strides, ]
+            
+        if len(channels) == 0:
+            channels = [input_channel, input_channel]
+        else:
+            channels = [input_channel] + list(channels)
+        model = []
+        for ic, oc, k, s in zip(channels[:-1], channels[1:], kernels, strides):
+            model.extend([
+                nn.Conv2d(ic, oc, k, s), 
+                nn.BatchNorm2d(oc), 
+                nn.ReLU()
+            ])
+        if not activate_last:
+            model.pop(-1)
+        self.model = nn.Sequential(*model)
+        
+    def forward(self, img: torch.Tensor, permute_for_torch: bool=False):
+        if permute_for_torch:
+            img = img.permute(0, 3, 1, 2)
+        return self.model(img).reshape(img.shape[0], -1)
