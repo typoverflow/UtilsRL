@@ -28,24 +28,22 @@ print(args)
 from gym.wrappers import AtariPreprocessing, FrameStack
 from UtilsRL.env.wrapper import RewardClip
 task = args.task
-env = RewardClip(
-        FrameStack(
-            AtariPreprocessing(
-                gym.make(task), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
-            ), num_stack=args.frame_stack
-        ), args.reward_min, args.reward_max
+env = FrameStack(
+    AtariPreprocessing(
+        RewardClip(
+            gym.make(task), reward_min=args.reward_min, reward_max=args.reward_max, eval=False
+        ), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
+    ), num_stack=args.frame_stack
 )
-eval_env = RewardClip(
-        FrameStack(
-            AtariPreprocessing(
-                gym.make(task), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
-            ), num_stack=args.frame_stack
-        ), args.reward_min, args.reward_max, eval=True
+eval_env = FrameStack(
+    AtariPreprocessing(
+        RewardClip(
+            gym.make(task, render_mode="rgb_array"), reward_min=args.reward_min, reward_max=args.reward_max, eval=True
+        ), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
+    ), num_stack=args.frame_stack
 )
 args["observation_space"] = env.observation_space
 args["action_space"] = env.action_space
-# args["obs_shape"] = env.observation_space.shape[0]
-# args["action_shape"] = env.action_space.shape[0]
 np_ftype, torch_ftype = args.UtilsRL.numpy_fp, args.UtilsRL.torch_fp
 
 
@@ -57,6 +55,7 @@ from UtilsRL.net.basic import NoisyLinear
 from UtilsRL.net.utils import reset_noise_layer
 from UtilsRL.rl.critic import C51DQN
 from UtilsRL.misc.decorator import profile
+from UtilsRL.rl.video_recorder import VideoRecorder
 field_specs = {
     "obs": convert_space_to_spec(args.observation_space), 
     "action": convert_space_to_spec(args.action_space), 
@@ -75,7 +74,8 @@ class RainbowAgent():
         self.gamma = args.gamma
         self.batch_size = args.batch_size
         self.prior_eps = args.prior_eps
-        self.traj_limit = args.max_episode_length
+        self.video_recorder = VideoRecorder(args.log_path)
+        # self.traj_limit = args.max_episode_length
         
         # epsilon greedy
         self.epsilon = args.max_epsilon
@@ -208,17 +208,21 @@ class RainbowAgent():
         traj_lengths = []
         traj_return = 0
         traj_length = 0
-        traj_limit = self.traj_limit
+        self.video_recorder.reset()
+        # traj_limit = self.traj_limit
         for i in range(eval_num):
             obs, done = env.reset(), False
             while True:
-                obs, reward, done, _ = env.step(self.get_action(obs, deterministic=True))
+                obs, reward, done, metadata = env.step(self.get_action(obs, deterministic=True))
                 traj_return += reward
                 traj_length += 1
-                if done or traj_length >= traj_limit:
+                if i == eval_num-1:
+                    self.video_recorder.record(metadata["rgb"])
+                if done:
                     traj_returns.append(traj_return)
                     traj_lengths.append(traj_length)
                     break
+        self.video_recorder.save(args.name+"_"+args.task, "mp4")
         self.dqn.train()
         return np.mean(traj_returns), np.mean(traj_lengths)
 
@@ -231,7 +235,7 @@ from collections import deque
 from UtilsRL.monitor import Monitor
 batch_size = args.batch_size
 n_step, use_n_step = args.n_step, args.use_n_step
-traj_limit = args.max_episode_length
+# traj_limit = args.max_episode_length
 logger: TensorboardLogger = args.logger
 tot_env_step = 0
 tot_agent_step = 0
@@ -260,15 +264,10 @@ for frame_idx in Monitor("train").listen(range(1, args.num_frames+1)):
                 "reward": sum(reward_buffer), 
                 "done": done
             })
-            buffer.commit(1)
+            # buffer.commit(1)
     
     agent.update_beta(frame_idx)
     agent.update_epsilon(frame_idx)
-    
-    if traj_length == traj_limit and not done:
-        buffer.reset_cache()
-        next_obs = env.reset()
-        traj_length = 0
     
     if done:
         while len(reward_buffer) > 1:
@@ -279,16 +278,17 @@ for frame_idx in Monitor("train").listen(range(1, args.num_frames+1)):
                 "done": done
             })
         reward_buffer.popleft()
-        buffer.commit(n_step - 1)
         next_obs = env.reset()
         traj_length = 0
         
     obs = next_obs
     
     if frame_idx < args.warmup_frame:
+        buffer.commit()
         continue
     
     if frame_idx % args.update_every == 0:
+        buffer.commit()   # lazy commit the samples
         batch_data, batch_is, batch_idx = buffer.random_batch(batch_size, beta=agent.beta)
         train_loss, batch_metric = agent.rainbow_update(batch_data, batch_is)
         buffer.batch_update(batch_idx, batch_metric)

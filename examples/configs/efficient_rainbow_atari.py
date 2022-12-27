@@ -17,7 +17,7 @@ n_step = 20
 scale_obs = False
 
 update_every = 1
-max_episode_length = 108000
+# max_episode_length = 108000
 num_frames = 50000000
 warmup_frame = 20000
 frame_stack = 4

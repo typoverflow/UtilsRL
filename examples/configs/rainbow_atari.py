@@ -17,15 +17,14 @@ n_step = 3
 scale_obs = False
 
 update_every = 4
-max_episode_length = 108000
 num_frames = 50000000
 warmup_frame = 20000
 frame_stack = 4
 frame_skip = 4
 buffer_size = 1e6
 target_update_interval = 2000
-eval_interval = 10000
-log_interval = 10000
+eval_interval = 50000
+log_interval = 50000
 eval_num = 5
 batch_size = 64
 gamma = 0.99
