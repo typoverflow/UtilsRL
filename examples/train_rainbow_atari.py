@@ -56,6 +56,7 @@ from UtilsRL.net.cnn import CNN, conv2d_out_size
 from UtilsRL.net.basic import NoisyLinear
 from UtilsRL.net.utils import reset_noise_layer
 from UtilsRL.rl.critic import C51DQN
+from UtilsRL.misc.decorator import profile
 field_specs = {
     "obs": convert_space_to_spec(args.observation_space), 
     "action": convert_space_to_spec(args.action_space), 

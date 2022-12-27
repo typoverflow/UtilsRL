@@ -45,8 +45,8 @@ min_beta = 0.4
 beta_decay = (max_beta - min_beta) / num_frames
 
 # reward clip
-reward_min = None
-reward_max = None
+reward_min = -1
+reward_max = 1
 
 # categorical dqn
 v_min = -10
