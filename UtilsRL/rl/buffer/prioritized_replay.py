@@ -71,14 +71,15 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             else:
                 batch_idx = []
                 if self.metric == "proportional":
-                    sum_tree_total = self.sum_tree.total()
-                    min_prob = self.min_tree.min() / sum_tree_total
+                    min_p = self.min_tree.min()
                     segment = 1 / batch_size
                     batch_target = (np.random.random(size=[batch_size, ]) + np.arange(0, batch_size))*segment
                     batch_idx, batch_p = self.sum_tree.find(batch_target)
                     batch_idx = np.asarray(batch_idx)
-                    batch_prob = np.asarray(batch_p) / sum_tree_total
-                    batch_is = np.power((len(self)*batch_prob), (-beta)) / np.power((len(self)*min_prob), (-beta))
+                    batch_p = np.asarray(batch_p)
+                    # Simplified form for IS weight, ref: https://github.com/nuance1979/tianshou/blob/104d47655299c2d386caf73ecb011a688b3384df/tianshou/data/buffer/prio.py#L73
+                    batch_is = (batch_p / min_p) ** (-beta)
+                    batch_is = batch_is / batch_is.max()
             if fields is None:
                 fields = self.field_specs.keys()
             batch_data = {

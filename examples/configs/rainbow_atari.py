@@ -23,9 +23,9 @@ frame_stack = 4
 frame_skip = 4
 buffer_size = 1e6
 target_update_interval = 2000
-eval_interval = 50000
+eval_interval = 200000
 log_interval = 50000
-eval_num = 5
+eval_num = 3
 batch_size = 64
 gamma = 0.99
 alpha = 0.5
@@ -36,12 +36,12 @@ lr = 0.0000625
 # epsilon
 max_epsilon = 0.5
 min_epsilon = 0.01
-epsilon_decay = (max_epsilon - min_epsilon) / num_frames
+epsilon_decay = 2*(max_epsilon - min_epsilon) / num_frames
 
 # beta
 max_beta = 1
 min_beta = 0.4
-beta_decay = (max_beta - min_beta) / num_frames
+beta_decay = 2*(max_beta - min_beta) / num_frames
 
 # reward clip
 reward_min = -1

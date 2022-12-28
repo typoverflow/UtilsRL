@@ -25,23 +25,10 @@ print(args)
 
 # %%
 # 2. Add environment specs to arguments
-from gym.wrappers import AtariPreprocessing, FrameStack
-from UtilsRL.env.wrapper import RewardClip
+from UtilsRL.env.atari import wrap_deepmind
 task = args.task
-env = FrameStack(
-    AtariPreprocessing(
-        RewardClip(
-            gym.make(task), reward_min=args.reward_min, reward_max=args.reward_max, eval=False
-        ), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
-    ), num_stack=args.frame_stack
-)
-eval_env = FrameStack(
-    AtariPreprocessing(
-        RewardClip(
-            gym.make(task, render_mode="rgb_array"), reward_min=args.reward_min, reward_max=args.reward_max, eval=True
-        ), grayscale_obs=not args.use_rgb, grayscale_newaxis=True, frame_skip=args.frame_skip, terminal_on_life_loss=True, scale_obs = args.scale_obs
-    ), num_stack=args.frame_stack
-)
+env = wrap_deepmind(task, episode_life=True, clip_rewards=True)
+eval_env = wrap_deepmind(task, episode_life=False, clip_rewards=False, render_mode="rgb_array")
 args["observation_space"] = env.observation_space
 args["action_space"] = env.action_space
 np_ftype, torch_ftype = args.UtilsRL.numpy_fp, args.UtilsRL.torch_fp
@@ -62,7 +49,6 @@ field_specs = {
     "next_obs": convert_space_to_spec(args.observation_space), 
     "reward": {"shape": [1, ], "dtype": np.float32}, 
     "done": {"shape": [1, ], "dtype": np.float32}, 
-    # "metric_value": {"shape": [1, ], "dtype": np.float32}, 
 }
 alpha = args.alpha if args.use_per else 0
 buffer = PrioritizedFlexReplay(args.buffer_size, field_specs, "proportional", alpha, cache_max_size=2000)
@@ -138,9 +124,7 @@ class RainbowAgent():
             selected_action = args.action_space.sample()
         else:
             state = np.asarray(state)
-            selected_action = self.dqn(
-                torch.FloatTensor(state).to(self.device).permute(1, 2, 3, 0).reshape([84, 84, -1]).permute(2, 0, 1).unsqueeze(0)
-            ).argmax()
+            selected_action = self.dqn(torch.FloatTensor(state).to(self.device).unsqueeze(0)).argmax()
             selected_action = selected_action.detach().cpu().numpy()
         return selected_action
     
@@ -158,8 +142,6 @@ class RainbowAgent():
         batch_reward = torch.from_numpy(batch_data["reward"]).float().to(self.device)
         batch_done = torch.from_numpy(batch_data["done"]).float().to(self.device)
         
-        batch_obs = batch_obs.permute(0, 2, 3, 4, 1).reshape([-1, 84, 84, 4]).permute(0, 3, 1, 2)
-        batch_next_obs = batch_next_obs.permute(0, 2, 3, 4, 1).reshape([-1, 84, 84, 4]).permute(0, 3, 1, 2)
         if self.use_categorical:
             delta_z = float(self.v_max - self.v_min) / (self.atom_size - 1)
             with torch.no_grad():
