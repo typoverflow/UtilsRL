@@ -150,6 +150,38 @@ class EpisodicLifeEnv(gym.Wrapper):
             return obs
 
 
+class LifelongLifeEnv(gym.Wrapper):
+    """
+    Wraps around EpisodicLifeEnv
+
+    """
+    def __init__(self, env):
+        super().__init__(env)
+        env = EpisodicLifeEnv(env)
+        self.lives = 0
+        self._return_info = False
+        
+    def step(self, action):
+        step_result = self.env.step(action)
+        if len(step_result) == 4:
+            obs, reward, done, info = step_result
+            new_step_api = False
+        else:
+            obs, reward, term, trunc, info = step_result
+            done = term or trunc
+            new_step_api = True
+        if done:
+            # check whether lives geq 0
+            lives = self.env.unwrapped.ale.lives()
+            if lives > 0:
+                done = False
+                term = False
+                self.env.reset()
+        if new_step_api:
+            return obs, reward, term, trunc, info
+        return obs, reward, done, info
+
+
 class FireResetEnv(gym.Wrapper):
     """Take action on reset for environments that are fixed until firing.
     Related discussion: https://github.com/openai/baselines/issues/240
@@ -289,8 +321,10 @@ def wrap_deepmind(
     env = MaxAndSkipEnv(env, skip=4)
     if episode_life:
         env = EpisodicLifeEnv(env)
-    if 'FIRE' in env.unwrapped.get_action_meanings():
-        env = FireResetEnv(env)
+    # else:
+        # env = LifelongLifeEnv(env)
+    # if 'FIRE' in env.unwrapped.get_action_meanings():
+        # env = FireResetEnv(env)
     if warp_frame:
         env = WarpFrame(env)
     if scale:
