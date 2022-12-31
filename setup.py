@@ -8,7 +8,7 @@ VERSION = (ROOT_DIR / "VERSION").read_text()
 
 def get_install_requires():
     return [
-        "gym>=0.19", 
+        "gym>=0.23.1,<=0.24.1", 
         "tqdm", 
         "numpy", 
         "tensorboard", 

@@ -16,6 +16,7 @@ class MLP(nn.Module):
         norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
         activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
         device: Optional[Union[str, int, torch.device]] = "cpu", 
+        linear_layer: nn.Module=nn.Linear
     ) -> None:
         super().__init__()
         if norm_layer:
@@ -23,7 +24,7 @@ class MLP(nn.Module):
                 assert len(norm_layer) == len(hidden_dims)
                 norm_layer_list = norm_layer
             else:
-                morm_layer_list = [norm_layer for _ in range(len(hidden_dims))]
+                norm_layer_list = [norm_layer for _ in range(len(hidden_dims))]
         else:
             norm_layer_list = [None]*len(hidden_dims)
         
@@ -41,9 +42,9 @@ class MLP(nn.Module):
         for in_dim, out_dim, norm, activ in zip(
             hidden_dims[:-1], hidden_dims[1:], norm_layer_list, activation_list
         ):
-            model += miniblock(in_dim, out_dim, norm, activ, device=device)
+            model += miniblock(in_dim, out_dim, norm, activ, device=device, linear_layer=linear_layer)
         if output_dim > 0:
-            model += [nn.Linear(hidden_dims[-1], output_dim, device=device)]
+            model += [linear_layer(hidden_dims[-1], output_dim, device=device)]
         self.output_dim = output_dim or hidden_dims[-1]
         
         self.model = nn.Sequential(*model)
