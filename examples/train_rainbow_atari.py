@@ -194,7 +194,7 @@ class RainbowAgent():
         # traj_limit = self.traj_limit
         for i in range(eval_num):
             obs, done = env.reset(), False
-            traj_return = 0
+            traj_return = traj_length = 0
             while True:
                 obs, reward, done, metadata = env.step(self.get_action(obs, deterministic=True))
                 traj_return += reward
