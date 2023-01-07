@@ -1,4 +1,4 @@
-from .atari_wrappers import (
+from .atari_wrapper import (
     NoopResetEnv, 
     MaxAndSkipEnv, 
     EpisodicLifeEnv, 

@@ -25,7 +25,7 @@ print(args)
 
 # %%
 # 2. Add environment specs to arguments
-from UtilsRL.env.atari import wrap_deepmind
+from UtilsRL.env.wrapper import wrap_deepmind
 task = args.task
 env = wrap_deepmind(task, episode_life=True, clip_rewards=True)
 eval_env = wrap_deepmind(task, episode_life=False, clip_rewards=False, render_mode="rgb_array")
