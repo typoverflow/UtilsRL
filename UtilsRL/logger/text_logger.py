@@ -2,8 +2,8 @@ import os
 from datetime import datetime
 from typing import Optional
 
-from .base_logger import BaseLogger
-from .base_logger import LogLevel, make_unique_name
+from UtilsRL.logger.base_logger import BaseLogger
+from UtilsRL.logger.base_logger import LogLevel, make_unique_name
 
 
 class ColoredLogger(BaseLogger):

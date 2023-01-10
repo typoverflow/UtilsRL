@@ -5,7 +5,7 @@ from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Optional, Sequence, Union, Dict, Any
 
-from .base_logger import LogLevel, BaseLogger, make_unique_name
+from UtilsRL.logger.base_logger import LogLevel, BaseLogger, make_unique_name
 
 numpy_compatible = np.ndarray
 try:
@@ -46,7 +46,7 @@ class TensorboardLogger(BaseLogger):
         else:
             self.unique_name = make_unique_name(name)
         self.log_path = os.path.join(log_path, self.unique_name, "tb")
-        if not os.path.exists(log_path):
+        if not os.path.exists(self.log_path):
             os.makedirs(log_path)
         
         self.tb_writer = SummaryWriter(self.log_path)
