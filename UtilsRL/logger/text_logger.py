@@ -17,7 +17,7 @@ class ColoredLogger(BaseLogger):
         "reset": "\033[0m", 
     }
     
-    def __init__(self, activate: True, level: int=LogLevel.WARNING):
+    def __init__(self, activate: True, level: int=LogLevel.WARNING, *args, **kwargs):
         super().__init__(activate, level)
         
     def info(self, msg: str, level: int=LogLevel.INFO):
@@ -57,7 +57,7 @@ class FileLogger(BaseLogger):
         if unique_name:
             self.unique_name = unique_name
         else:
-            self.unique_name = make_unique_name
+            self.unique_name = make_unique_name(name)
         self.log_path = os.path.join(log_path, self.unique_name)
         if not os.path.exists(log_path):
             os.makedirs(log_path)

@@ -21,7 +21,7 @@ class WandbLogger(BaseLogger):
                  config: Optional[DictLike]=None, 
                  project: Optional[str]=None, 
                  entity: Optional[str]=None, 
-                 unique_name: str=None, 
+                 unique_name: Optional[str]=None, 
                  activate: bool=True, 
                  level: int=LogLevel.WARNING, 
                  *args, **kwargs):

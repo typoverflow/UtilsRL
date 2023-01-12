@@ -3,7 +3,8 @@ import pickle
 import numpy as np
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, Sequence, Union, Dict, Any
+from typing import Dict as DictLike
+from typing import Optional, Sequence, Union, Any
 
 from UtilsRL.logger.base_logger import LogLevel, BaseLogger, make_unique_name
 
@@ -99,7 +100,7 @@ class TensorboardLogger(BaseLogger):
     def log_scalars(
         self,
         main_tag: str, 
-        tag_scalar_dict: Dict[str, Union[float, numpy_compatible]], 
+        tag_scalar_dict: DictLike[str, Union[float, numpy_compatible]], 
         step: Optional[int] = None):
         """Add scalars which share the main tag to tensorboard summary.
         
@@ -122,7 +123,7 @@ class TensorboardLogger(BaseLogger):
         tag: str, 
         img_tensor: numpy_compatible, 
         step: Optional[int] = None, 
-        dataformat: Optional[str] = "CHW"):
+        dataformat: str = "CHW"):
         """Add image to tensorboard summary. Note that this requires ``pillow`` package. 
         
         :param tag: the identifier of the image.
@@ -171,7 +172,17 @@ class TensorboardLogger(BaseLogger):
             os.makedirs(path)
         with open(os.path.join(path, name), "wb") as fp:
             pickle.dump(object, fp)
-        self.log_str(f"Saved object to {os.path.join(path, name)}", type="LOG", level=2)
+    
+    def load_object(self, 
+                    name: str, 
+                    path: Optional[str]=None):
+        if path is None:
+            path = ""
+        path = os.path.join(path, name)
+        with open(path, "r") as fp:
+            object = pickle.load(path)
+        return object
+        
     
     def __enter__(self):
         return self
