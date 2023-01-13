@@ -167,11 +167,3 @@ class CompositeLogger(BaseLogger):
             name=name, object=object, path=path
         )
         
-    def load_object(self, 
-                    name: str, 
-                    path: Optional[str]=None):
-        return self._call_by_group(
-            func="load_object", 
-            group=["TensorboardLogger"], 
-            name=name, path=path
-        )

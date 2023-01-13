@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Dict as DictLike
 from typing import Optional, Sequence, Union, Any
 
-from UtilsRL.logger.base_logger import LogLevel, BaseLogger, make_unique_name
+from UtilsRL.logger.base_logger import LogLevel, BaseLogger, make_unique_name, save_fn, load_fn
 
 numpy_compatible = np.ndarray
 try:
@@ -47,6 +47,7 @@ class TensorboardLogger(BaseLogger):
         else:
             self.unique_name = make_unique_name(name)
         self.log_path = os.path.join(log_path, self.unique_name, "tb")
+        self.output_path = self.log_path
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
         
@@ -158,31 +159,33 @@ class TensorboardLogger(BaseLogger):
         self,
         name: str, 
         object: Any, 
-        path: Optional[str] = None):
+        type: Optional[str]="model", 
+        path: Optional[str] = None, 
+        protocol: str="torch"):
         """Save a Python object to the given path.
         
         :param name: the identifier of the object.
         :param object: the object to save.
         :param path: the path to save the object, will be created if not exist; will be set to `self.log_path` if None.
         """
-
+        name = name.replace("/", "_")
         if path is None:
-            path = self.log_path
-        if not os.path.exists(path):
-            os.makedirs(path)
-        with open(os.path.join(path, name), "wb") as fp:
-            pickle.dump(object, fp)
+            path = self.output_path
+        else:
+            if not os.path.exists(path):
+                os.makedirs(path)
+        save_path = os.path.join(path, name)
+        save_fn(protocol)(object, save_path)
+        return save_path
     
     def load_object(self, 
                     name: str, 
-                    path: Optional[str]=None):
+                    path: Optional[str]=None, 
+                    protocol="torch"):
+        name = name.replace("/", "_")
         if path is None:
-            path = ""
-        path = os.path.join(path, name)
-        with open(path, "r") as fp:
-            object = pickle.load(path)
-        return object
-        
+            path = self.output_path
+        return load_fn(protocol)(os.path.join(path, name))
     
     def __enter__(self):
         return self

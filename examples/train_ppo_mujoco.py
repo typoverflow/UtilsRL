@@ -245,6 +245,8 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
                 "eval/traj_length": np.mean(traj_lengths)
             })
             logger.info(f"Epoch: {i_epoch}, eval traj return {np.mean(traj_returns)}, eval traj length {np.mean(traj_lengths)}")
+            logger.log_object("model/actor", actor.state_dict())
+            logger.log_object("model/critic", critic1.state_dict())
         
         obs_torch = torch.from_numpy(data_batch["obs"]).to(torch_ftype).to(args.device)
         obs_normalizer.update(obs_torch)  
