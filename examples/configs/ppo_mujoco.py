@@ -34,3 +34,8 @@ class UtilsRL(NameSpace):
 task = "HalfCheetah-v3"
 log_path = "./tests/log"
 name = "debug_buffer"
+
+class wandb(NameSpace):
+    activate = False
+    project = "ppo_mujoco"
+    entity = "your_account"

@@ -66,3 +66,8 @@ class UtilsRL(NameSpace):
 task = "BreakoutNoFrameskip-v4"
 log_path = "./tests/log/rainbow"
 name = "rainbow"
+
+class wandb(NameSpace):
+    activate = False
+    project = "rainbow_atari"
+    entity = "your_account"

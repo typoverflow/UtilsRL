@@ -2,7 +2,6 @@ import os
 import torch
 import numpy as np
 from UtilsRL.misc.namespace import NameSpace
-from UtilsRL.logger import logger
 
 from typing import Optional, Dict, Union
 

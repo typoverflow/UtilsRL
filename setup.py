@@ -11,7 +11,6 @@ def get_install_requires():
         "gym>=0.23.1,<=0.24.1", 
         "tqdm", 
         "numpy", 
-        "tensorboard", 
         "torch", 
         "pandas"
     ]

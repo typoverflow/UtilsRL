@@ -4,12 +4,14 @@ from UtilsRL.exp._device import *
 from UtilsRL.exp.snapshot import make_snapshot
 from UtilsRL.exp.precision import set_precision
 
-from UtilsRL.logger import BaseLogger, DummyLogger, logger
+from UtilsRL.logger import BaseLogger
+from UtilsRL.logger import logger as url_logger_module_logger
 
 from typing import Any, Optional
 
 device = None
 seed = None
+logger = None
 
 def setup(args, 
           _logger: Optional[BaseLogger] = None, 
@@ -31,7 +33,7 @@ def setup(args,
     elif "logger" in args:
         _logger = args["logger"]
     else:
-        _logger = DummyLogger()
+        _logger = url_logger_module_logger
     args["logger"] = _logger
         
     if not _device is None:
