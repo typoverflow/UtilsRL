@@ -13,17 +13,19 @@ from UtilsRL.rl.buffer import TransitionSimpleReplay, TransitionFlexReplay, conv
 from UtilsRL.rl.actor import SquashedGaussianActor
 from UtilsRL.rl.critic import Critic
 from UtilsRL.net import MLP
-from UtilsRL.logger import TensorboardLogger, DummyLogger
 from UtilsRL.monitor import Monitor
 from UtilsRL.exp import parse_args, setup
 from UtilsRL.misc.decorator import profile
 
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
-if args.debug:
-    logger = DummyLogger()
-else:
-    logger = TensorboardLogger(args.log_path, "_".join([args.name, args.task]))
+from UtilsRL.logger import CompositeLogger
+logger_configs = {
+    "FileLogger": {"activate": not args.debug}, 
+    "TensorboardLogger": {"activate": not args.debug},
+    "WandbLogger": {"activate": not args.debug, "project": "test_ppo_mujoco", "entity": "typoverflow"} 
+}
+logger = CompositeLogger(args.log_path, args.name+"_"+args.task, logger_configs=logger_configs)
 setup(args, logger, args.device)
 print(args)
 

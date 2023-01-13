@@ -4,7 +4,6 @@ import numpy as np
 import pandas as pd
 from tensorboard.backend.event_processing import event_accumulator
 
-from UtilsRL.logger import logger
 from UtilsRL.monitor import Monitor
 
 from typing import Any, Optional, List, Union, Callable, Dict, Sequence

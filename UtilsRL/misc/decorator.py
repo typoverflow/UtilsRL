@@ -51,7 +51,7 @@ def profile(func):
     called_times = 0
     elapsed_time = 0
     def exit_logger():
-        logger.log_str(f"[Profile]: Function {func.__name__}, called {called_times} times, total elapsed time {elapsed_time}(s), avg {elapsed_time/called_times if called_times else 0}(s).", type="WARNING")
+        logger.info(f"[Profile]: Function {func.__name__}, called {called_times} times, total elapsed time {elapsed_time}(s), avg {elapsed_time/called_times if called_times else 0}(s).")
     atexit.register(exit_logger)
     @functools.wraps(func)
     def wrapper(*args, **kwargs):

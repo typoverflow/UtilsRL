@@ -4,8 +4,6 @@ from typing import Dict as DictLike
 import random
 import numpy as np
 
-from UtilsRL.logger import logger
-from .base import Replay, SimpleReplay, FlexReplay
 from .transition_replay import TransitionSimpleReplay, TransitionFlexReplay
 
 def proportional(metric_value, alpha):

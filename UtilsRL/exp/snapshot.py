@@ -24,7 +24,7 @@ def make_snapshot(args: Optional[Union[Dict, NameSpace, str]]):
             git commit -m \"snapshot: {branch}\" >/dev/null 2>&1 && \
             git switch - >/dev/null 2>&1 && \
             git stash pop >/dev/null 2>&1 "
-    logger.log_str(f"saving snapshot to {branch}")
+    logger.info(f"UtilsRL.snapshot: saving code snapshot to {branch}.")
     os.system(cmd)
     
     return {

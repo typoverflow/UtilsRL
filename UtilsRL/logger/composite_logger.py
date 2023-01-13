@@ -3,7 +3,7 @@ import numpy as np
 from operator import itemgetter
 
 from typing import Dict as DictLike
-from typing import Optional, Any, Union, Sequence, str
+from typing import Optional, Any, Union, Sequence
 
 from UtilsRL.logger.base_logger import make_unique_name, LogLevel
 from UtilsRL.logger.base_logger import BaseLogger
@@ -36,10 +36,10 @@ class CompositeLogger(BaseLogger):
     def __init__(self, 
                  log_path: str, 
                  name: str, 
+                 loggers_config: DictLike={}, 
                  unique_name: Optional[str]=None, 
                  activate: bool=True, 
                  level: int=LogLevel.WARNING, 
-                 logger_configs: DictLike={}, 
                  *args, **kwargs):
         super().__init__(activate, level)
         
@@ -50,14 +50,20 @@ class CompositeLogger(BaseLogger):
         self.log_path = os.path.join(log_path, self.unique_name)
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
-        self.logger_configs = logger_configs
             
-        self.loggers = []
-        for _logger_cls, _logger_config in logger_configs.items():
+        self.loggers = list()
+        self.loggers_config = dict()
+        self.loggers_cls = set()
+        for _logger_cls, _logger_config in self.logger_default_args.items():
+            self.loggers_config[_logger_cls] = self.logger_default_args[_logger_cls].update(loggers_config.get(_logger_cls, {}))
+            if self.loggers_config[_logger_cls].get("activate", True):
+                # if activate is designated as false, continue
+                continue
             self.loggers[_logger_cls] = self.logger_registry[_logger_cls](
-                **self.logger_default_args[_logger_cls], 
-                **_logger_config
+                log_path=log_path, unique_name=self.unique_name
+                **self.loggers_config[_logger_cls], 
             )
+            self.loggers_cls.add(_logger_cls)
         
     def __getattr__(self, __name: str):
         # if the method does not exist for CompositeLogger
@@ -66,11 +72,9 @@ class CompositeLogger(BaseLogger):
                 return _logger.__getattribute__(__name)
 
     def _call_by_group(self, func: str, group: list, *args, **kwargs):
-        def on_exception(_logger_cls):
-            raise NameError(f"Class {_logger_cls} does not have method: {func}.")
         return {
-            _logger_cls: getattr(self.loggers[_logger_cls], func, on_exception)(*args, **kwargs)\
-                for _logger_cls in group
+            _logger_cls: getattr(self.loggers[_logger_cls], func)(*args, **kwargs)\
+                for _logger_cls in group if _logger_cls in self.loggers_cls
         }
     
     def info(self, msg: str, level: int=LogLevel.WARNING):

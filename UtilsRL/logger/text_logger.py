@@ -17,7 +17,7 @@ class ColoredLogger(BaseLogger):
         "reset": "\033[0m", 
     }
     
-    def __init__(self, activate: True, level: int=LogLevel.WARNING, *args, **kwargs):
+    def __init__(self, activate:bool=True, level: int=LogLevel.WARNING, *args, **kwargs):
         super().__init__(activate, level)
         
     def info(self, msg: str, level: int=LogLevel.INFO):

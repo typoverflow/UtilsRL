@@ -10,7 +10,6 @@ from smtplib import SMTP_SSL, SMTP
 from email.mime.text import MIMEText
 
 from UtilsRL.third_party.tqdm import tqdm_tty, tqdm_notebook, tqdm_file
-from UtilsRL.logger import BaseLogger, DummyLogger
 
 from typing import Optional, Sequence, Union, Callable, Any
 
@@ -47,7 +46,6 @@ class Monitor(object):
 
     :param desc: description of the Monitor, will be displayed at the left side of the progress meter.
     :param out_dir: output directory of the products (model checkpoints). This must be specified if you are to use :func:`~UtilsRL.monitor.Monitor.register_context`.
-    :param logger: hook of the logger to be used inside Monitor. If set this to `None`, a :class:`~UtilsRL.logger.DummyLogger` will be used.
     """
 
     @staticmethod
@@ -94,13 +92,11 @@ class Monitor(object):
     def __init__(self,
                  desc: Optional[str] = None, 
                  out_dir: Optional[str] = None, 
-                 logger: Optional[BaseLogger] = None, 
                  *args, **kwargs):
 
         self.desc = desc if tqdm_cls == tqdm_file else "\033[1;37m[{}]\033[0m".format(desc)
         self.tqdm_cls = tqdm_cls
         self.out_dir = out_dir
-        self.logger = logger if logger else DummyLogger()
         self.args = args
         self.kwargs = kwargs
 
