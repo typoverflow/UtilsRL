@@ -48,7 +48,7 @@ class TensorboardLogger(BaseLogger):
             self.unique_name = make_unique_name(name)
         self.log_path = os.path.join(log_path, self.unique_name, "tb")
         if not os.path.exists(self.log_path):
-            os.makedirs(log_path)
+            os.makedirs(self.log_path)
         
         self.tb_writer = SummaryWriter(self.log_path)
         

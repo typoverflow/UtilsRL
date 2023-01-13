@@ -69,7 +69,7 @@ class FileLogger(BaseLogger):
         type = type.upper()
         time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         with open(self.txt_file, "a+") as fp:
-            fp.write("[{}] ({})\t{}".format(time_fmt, type, msg))
+            fp.write("[{}] ({})\t{}\n".format(time_fmt, type, msg))
         
     def info(self, msg: str, level: int=LogLevel.INFO):
         self._write(msg, level, "info")

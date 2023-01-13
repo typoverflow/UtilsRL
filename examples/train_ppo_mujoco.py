@@ -20,12 +20,12 @@ from UtilsRL.misc.decorator import profile
 # 1. Set up logger and arguments
 args = parse_args("./examples/configs/ppo_mujoco.py")
 from UtilsRL.logger import CompositeLogger
-logger_configs = {
+loggers_config = {
     "FileLogger": {"activate": not args.debug}, 
     "TensorboardLogger": {"activate": not args.debug},
-    "WandbLogger": {"activate": not args.debug, "project": "test_ppo_mujoco", "entity": "typoverflow"} 
+    "WandbLogger": {"activate": args.wandb.activate, "project": args.wandb.project, "entity": args.wandb.entity} 
 }
-logger = CompositeLogger(args.log_path, args.name+"_"+args.task, logger_configs=logger_configs)
+logger = CompositeLogger(args.log_path, args.name+"_"+args.task, loggers_config=loggers_config)
 setup(args, logger, args.device)
 print(args)
 
@@ -244,13 +244,14 @@ for i_epoch in Monitor("PPO Training").listen(range(args.max_epoch)):
                 "eval/traj_return": np.mean(traj_returns), 
                 "eval/traj_length": np.mean(traj_lengths)
             })
+            logger.info(f"Epoch: {i_epoch}, eval traj return {np.mean(traj_returns)}, eval traj length {np.mean(traj_lengths)}")
         
         obs_torch = torch.from_numpy(data_batch["obs"]).to(torch_ftype).to(args.device)
         obs_normalizer.update(obs_torch)  
      
     for k, v in train_loss.items():
-        logger.log_scalar(k, v, i_epoch)
+        logger.log_scalar(k, v, step=i_epoch)
     if isinstance(obs_normalizer, RunningNormalizer):
-        logger.log_scalar("misc/obs_mean", torch.norm(obs_normalizer.mean).cpu().numpy(), i_epoch)
-        logger.log_scalar("misc/obs_var", torch.norm(obs_normalizer.var).cpu().numpy(), i_epoch)
+        logger.log_scalar("misc/obs_mean", torch.norm(obs_normalizer.mean).cpu().numpy(), step=i_epoch)
+        logger.log_scalar("misc/obs_var", torch.norm(obs_normalizer.var).cpu().numpy(), step=i_epoch)
         

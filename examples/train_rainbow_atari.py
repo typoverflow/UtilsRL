@@ -13,12 +13,14 @@ from operator import itemgetter
 # %%
 # 1. Set up logger and experiments
 from UtilsRL.exp import parse_args, setup
-from UtilsRL.logger import DummyLogger, TensorboardLogger
+from UtilsRL.logger import CompositeLogger
 args = parse_args("./examples/configs/rainbow_atari.py")
-if args.debug:
-    logger = DummyLogger()
-else:
-    logger = TensorboardLogger(args.log_path, "_".join([args.name, args.task]))
+loggers_config = {
+    "FileLogger": {"activate": not args.debug}, 
+    "TensorboardLogger": {"acrtivate": not args.debug}, 
+    "WandbLogger": {"activate": args.wandb.activate, "project": args.wandb.project, "entity": args.wandb.entity}
+}
+logger = CompositeLogger(args.log_path, args.name+"_"+args.task, loggers_config=loggers_config)
 setup(args, logger, args.device)
 print(args)
 
@@ -219,7 +221,7 @@ from UtilsRL.monitor import Monitor
 batch_size = args.batch_size
 n_step, use_n_step = args.n_step, args.use_n_step
 # traj_limit = args.max_episode_length
-logger: TensorboardLogger = args.logger
+logger: CompositeLogger = args.logger
 tot_env_step = 0
 tot_agent_step = 0
 traj_return = 0

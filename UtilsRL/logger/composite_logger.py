@@ -29,9 +29,6 @@ class CompositeLogger(BaseLogger):
     }
     logger_default_args = {
         "ColoredLogger": {"activate": True}, 
-        "FileLogger": {"activate": False}, 
-        "TensorboardLogger": {"activate": False}, 
-        "WandbLogger": {"activate": False}
     }
     def __init__(self, 
                  log_path: str, 
@@ -51,16 +48,20 @@ class CompositeLogger(BaseLogger):
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
             
-        self.loggers = list()
+        self.loggers = dict()
         self.loggers_config = dict()
         self.loggers_cls = set()
-        for _logger_cls, _logger_config in self.logger_default_args.items():
-            self.loggers_config[_logger_cls] = self.logger_default_args[_logger_cls].update(loggers_config.get(_logger_cls, {}))
-            if self.loggers_config[_logger_cls].get("activate", True):
+        for _logger_cls in self.logger_registry:
+            # iterate over all registered logger classes
+            self.loggers_config[_logger_cls] = dict(
+                **self.logger_default_args.get(_logger_cls, {}), 
+                **loggers_config.get(_logger_cls, {})
+            )
+            if self.loggers_config[_logger_cls].get("activate", True) == False:
                 # if activate is designated as false, continue
                 continue
             self.loggers[_logger_cls] = self.logger_registry[_logger_cls](
-                log_path=log_path, unique_name=self.unique_name
+                log_path=log_path, name=name, unique_name=self.unique_name, 
                 **self.loggers_config[_logger_cls], 
             )
             self.loggers_cls.add(_logger_cls)
