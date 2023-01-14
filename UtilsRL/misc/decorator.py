@@ -2,8 +2,6 @@ import functools
 import time
 import atexit
 
-from UtilsRL.logger import logger
-
 def depreciated(func):
     """
     Decorator to print depreciated message
@@ -51,6 +49,7 @@ def profile(func):
     called_times = 0
     elapsed_time = 0
     def exit_logger():
+        from UtilsRL.logger import logger  # the input is moved here to avoid circular import
         logger.info(f"[Profile]: Function {func.__name__}, called {called_times} times, total elapsed time {elapsed_time}(s), avg {elapsed_time/called_times if called_times else 0}(s).")
     atexit.register(exit_logger)
     @functools.wraps(func)

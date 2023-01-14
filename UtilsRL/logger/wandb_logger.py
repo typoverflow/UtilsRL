@@ -1,11 +1,11 @@
 import os
-import atexit
 import numpy as np
 
 from typing import Dict as DictLike
 from typing import Optional, Any, Union, Sequence
 
 from UtilsRL.logger.base_logger import BaseLogger, make_unique_name, LogLevel, save_fn, load_fn
+from UtilsRL.misc.namespace import NameSpaceMeta
 
 numpy_compatible = np.ndarray
 try:
@@ -35,6 +35,8 @@ class WandbLogger(BaseLogger):
         self.log_path = os.path.join(log_path, self.unique_name)
         if not os.path.exists(self.log_path):
             os.makedirs(self.log_path)
+        if isinstance(config, NameSpaceMeta):
+            config = config.as_dict()
         self.run = wandb.init(
             dir = self.log_path, 
             name = self.unique_name, 

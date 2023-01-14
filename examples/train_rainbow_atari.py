@@ -18,7 +18,7 @@ args = parse_args("./examples/configs/rainbow_atari.py")
 loggers_config = {
     "FileLogger": {"activate": not args.debug}, 
     "TensorboardLogger": {"acrtivate": not args.debug}, 
-    "WandbLogger": {"activate": args.wandb.activate, "project": args.wandb.project, "entity": args.wandb.entity}
+    "WandbLogger": {**args.wandb, "config": args}
 }
 logger = CompositeLogger(args.log_path, args.name+"_"+args.task, loggers_config=loggers_config)
 setup(args, logger, args.device)
