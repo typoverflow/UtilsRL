@@ -21,9 +21,10 @@ from UtilsRL.misc.decorator import profile
 args = parse_args("./examples/configs/ppo_mujoco.py")
 from UtilsRL.logger import CompositeLogger
 loggers_config = {
+    "ColoredLogger": {"activate": not args.debug}, 
     "FileLogger": {"activate": not args.debug}, 
     "TensorboardLogger": {"activate": not args.debug},
-    "WandbLogger": {"activate": args.wandb.activate, "project": args.wandb.project, "entity": args.wandb.entity} 
+    "WandbLogger": {"activate": args.wandb.activate, "project": args.wandb.project, "entity": args.wandb.entity, "config": args} 
 }
 logger = CompositeLogger(args.log_path, args.name+"_"+args.task, loggers_config=loggers_config)
 setup(args, logger, args.device)

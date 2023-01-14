@@ -18,7 +18,7 @@ class WandbLogger(BaseLogger):
     def __init__(self, 
                  log_path: str, 
                  name: str, 
-                 exp_args: Optional[DictLike]=None, 
+                 config: Optional[DictLike]=None, 
                  project: Optional[str]=None, 
                  entity: Optional[str]=None, 
                  unique_name: Optional[str]=None, 
@@ -38,7 +38,7 @@ class WandbLogger(BaseLogger):
         self.run = wandb.init(
             dir = self.log_path, 
             name = self.unique_name, 
-            config = exp_args, 
+            config = config, 
             project = project, 
             entity = entity,     
         ) # this create the `self.log_path/wandb` dir
