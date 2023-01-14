@@ -22,7 +22,7 @@ def setup(args,
         then `_device` will be selected as the device-to-use during this experiment; otherwise, `args.device` will be used, \
         if `args.device` is also `None`, then the return object of :func:`~select_device` will be used. 
         
-    :param args: arguments of this experiment, should be a dict-like or `NameSpace` object.
+    :param args: arguments of this experiment, should be a dict-like or `NameSpace` class.
     :param _logger: specify the logger to use. 
     :param _device: specify the device to use.
     :param _seed: specify the seed to use. 

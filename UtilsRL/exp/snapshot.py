@@ -1,11 +1,11 @@
 import os
 
-from UtilsRL.misc.namespace import NameSpace
+from UtilsRL.misc.namespace import NameSpaceMeta
 from UtilsRL.logger import logger
 
 from typing import Optional, Dict, Union
 
-def make_snapshot(args: Optional[Union[Dict, NameSpace, str]]):
+def make_snapshot(args: Optional[Union[Dict, NameSpaceMeta, str]]):
     if args is None:
         return {
             "UtilsRL.snapshot_branch": None

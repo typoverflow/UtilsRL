@@ -53,16 +53,15 @@ class CompositeLogger(BaseLogger):
         self.loggers_cls = set()
         for _logger_cls in self.logger_registry:
             # iterate over all registered logger classes
-            self.loggers_config[_logger_cls] = dict(
-                **self.logger_default_args.get(_logger_cls, {}), 
-                **loggers_config.get(_logger_cls, {})
-            )
-            if self.loggers_config[_logger_cls].get("activate", True) == False:
+            _config = self.logger_default_args.get(_logger_cls, {})
+            _config.update(loggers_config.get(_logger_cls, {}))
+            self.loggers_config[_logger_cls] = _config
+            if _config.get("activate", True) == False:
                 # if activate is designated as false, continue
                 continue
             self.loggers[_logger_cls] = self.logger_registry[_logger_cls](
                 log_path=log_path, name=name, unique_name=self.unique_name, 
-                **self.loggers_config[_logger_cls], 
+                **_config, 
             )
             self.loggers_cls.add(_logger_cls)
         

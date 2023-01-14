@@ -47,7 +47,7 @@ def parse_cmd_args(convert=True):
         this[keys[-1]] = safe_eval(value)
     return args
     
-def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpace, Dict[str, Any]]:
+def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpaceMeta, Dict[str, Any]]:
     """Parse args from json file, yaml, python file or plain old dict. \
         Command-line argumnets will be parsed as well, and will be used to overwrite \
         the init arguments. 
@@ -94,7 +94,7 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
                 logger.warning(f"parse_args: overwriting key {current_key + new_key} with {new_value}")
                 old[new_key] = new_value
             else:
-                if (convert and isinstance(new_value, NameSpaceMeta)) \
+                if convert and isinstance(new_value, NameSpaceMeta) \
                     or (not convert and isinstance(new_value, dict)):
                     traverse_add(old[new_key], new_value, current_key=current_key+new_key+".")
                 else:
