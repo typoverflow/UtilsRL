@@ -15,6 +15,7 @@ class MLP(nn.Module):
         hidden_dims: Sequence[int] = [], 
         norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
         activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
         device: Optional[Union[str, int, torch.device]] = "cpu", 
         linear_layer: nn.Module=nn.Linear
     ) -> None:
@@ -37,12 +38,21 @@ class MLP(nn.Module):
         else:
             activation_list = [None]*len(hidden_dims)
         
+        if dropout:
+            if isinstance(dropout. list):
+                assert len(dropout) == len(hidden_dims)
+                dropout_list = dropout
+            else:
+                dropout_list = [dropout for _ in range(len(hidden_dims))]
+        else:
+            dropout_list = [None]*len(hidden_dims)
+                        
         hidden_dims = [input_dim] + list(hidden_dims)
         model = []
-        for in_dim, out_dim, norm, activ in zip(
-            hidden_dims[:-1], hidden_dims[1:], norm_layer_list, activation_list
+        for in_dim, out_dim, norm, activ, dropout in zip(
+            hidden_dims[:-1], hidden_dims[1:], norm_layer_list, activation_list, dropout_list
         ):
-            model += miniblock(in_dim, out_dim, norm, activ, device=device, linear_layer=linear_layer)
+            model += miniblock(in_dim, out_dim, norm, activ, dropout, device=device, linear_layer=linear_layer)
         if output_dim > 0:
             model += [linear_layer(hidden_dims[-1], output_dim, device=device)]
         self.output_dim = output_dim or hidden_dims[-1]
@@ -62,6 +72,7 @@ class EnsembleMLP(nn.Module):
         hidden_dims: Sequence[int] = [], 
         norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
         activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
         share_hidden_layer: Union[Sequence[bool], bool] = False, 
         device: Optional[Union[str, int, torch.device]] = "cpu", 
     ) -> None:
@@ -86,6 +97,15 @@ class EnsembleMLP(nn.Module):
         else:
             activation_list = [None]*len(hidden_dims)
             
+        if dropout:
+            if isinstance(dropout. list):
+                assert len(dropout) == len(hidden_dims)
+                dropout_list = dropout
+            else:
+                dropout_list = [dropout for _ in range(len(hidden_dims))]
+        else:
+            dropout_list = [None]*len(hidden_dims)
+            
         if share_hidden_layer:
             if isinstance(share_hidden_layer, list):
                 assert len(share_hidden_layer) == len(hidden_dims)
@@ -98,13 +118,13 @@ class EnsembleMLP(nn.Module):
         
         hidden_dims = [input_dim] + list(hidden_dims)
         model = []
-        for in_dim, out_dim, norm, activ, share_layer in zip(
-            hidden_dims[:-1], hidden_dims[1:], norm_layer_list, activation_list, share_hidden_layer_list
+        for in_dim, out_dim, norm, activ, dropout, share_layer in zip(
+            hidden_dims[:-1], hidden_dims[1:], norm_layer_list, activation_list,dropout_list, share_hidden_layer_list
         ):
             if share_layer:      
-                model += miniblock(in_dim, out_dim, norm, activ, linear_layer=nn.Linear, device=device)
+                model += miniblock(in_dim, out_dim, norm, activ, dropout, linear_layer=nn.Linear, device=device)
             else:
-                model += miniblock(in_dim, out_dim, norm, activ, linear_layer=EnsembleLinear, ensemble_size=ensemble_size, device=device)
+                model += miniblock(in_dim, out_dim, norm, activ, dropout, linear_layer=EnsembleLinear, ensemble_size=ensemble_size, device=device)
         if output_dim > 0:
             model += [EnsembleLinear(hidden_dims[-1], output_dim, ensemble_size, device=device)]
         self.output_dim = output_dim or hidden_dims[-1]

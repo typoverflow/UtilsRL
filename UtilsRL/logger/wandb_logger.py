@@ -42,7 +42,8 @@ class WandbLogger(BaseLogger):
             name = self.unique_name, 
             config = config, 
             project = project, 
-            entity = entity,     
+            entity = entity, 
+            **kwargs
         ) # this create the `self.log_path/wandb` dir
         self.output_path = os.path.join(self.log_path, "wandb")
         if not os.path.exists(self.output_path):

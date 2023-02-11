@@ -1,12 +1,16 @@
-from typing import Dict, Optional, Any, Sequence, Union
+from typing import Dict, Optional, Any, Sequence, Union, Callable, Type
+from collections import defaultdict
+from functools import partial
 
 import torch
 import torch.nn as nn
+from torch.distributions import Categorical, Normal
 import numpy as np
 
 from UtilsRL.math.distributions import TanhNormal
 from UtilsRL.net import MLP, EnsembleMLP
-from torch.distributions import Categorical, Normal
+
+ModuleType = Type[nn.Module]
 
 class Critic(nn.Module):
     """A vanilla state-action critic, which outputs a single value Q(s, a) at a time. 
@@ -22,14 +26,18 @@ class Critic(nn.Module):
                  backend: nn.Module, 
                  input_dim: int, 
                  output_dim: int=1, 
-                 device: Union[str, int, torch.device] = "cpu", 
-                 hidden_dims: Union[int, Sequence[int]] = [], 
                  ensemble_size: int=1, 
-                 share_hidden_layer: Union[Sequence[bool], bool]=False
+                 device: Union[str, int, torch.device] = "cpu", 
+                 *, 
+                 hidden_dims: Sequence[int] = [], 
+                 norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+                 activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+                 dropout: Optional[Union[float, Sequence[float]]] = None, 
+                 share_hidden_layer: Union[Sequence[bool], bool] = False, 
                  ):
         super().__init__()
         
-        self.critic_type = "SingleCritic"
+        self.critic_type = "Critic"
         self.backend = backend
         self.input_dim = input_dim
         self.output_dim = output_dim
@@ -42,6 +50,9 @@ class Critic(nn.Module):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device
             )
         elif isinstance(ensemble_size, int) and ensemble_size > 1:
@@ -49,6 +60,9 @@ class Critic(nn.Module):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device, 
                 ensemble_size = ensemble_size, 
                 share_hidden_layer = share_hidden_layer
@@ -66,6 +80,61 @@ class Critic(nn.Module):
             state = torch.cat([state, action], dim=-1)
         return self.output_layer(self.backend(state))
 
+
+class DoubleCritic(nn.Module):
+    _reduce_fn_ = {
+        "min": partial(torch.min, dim=0), 
+        "max": partial(torch.max, dim=0), 
+        "average": partial(torch.mean, dim=0)
+    }
+    def __init__(self, 
+                 backend: nn.Module, 
+                 input_dim: int, 
+                 output_dim: int=1, 
+                 critic_num: int=2, 
+                 reduce: Union[str, Callable]="min", 
+                 device: Union[str, int, torch.device]="cpu", 
+                 *, 
+                 hidden_dims: Union[int, Sequence[int]] = [], 
+                 norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+                 activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+                 dropout: Optional[Union[float, Sequence[float]]] = None, 
+                 ):
+        super().__init__()
+        self.critic_type = "DoubleCritic"
+        self.backend = backend
+        self.input_dim = input_dim
+        self.output_dim = output_dim
+        self.device = device
+        self.critic_num = critic_num
+        
+        if isinstance(hidden_dims, int):
+            hidden_dims = [hidden_dims]
+        self.output_layer = EnsembleMLP(
+            input_dim = input_dim, 
+            output_dim = output_dim, 
+            ensemble_size = critic_num, 
+            hidden_dims = hidden_dims, 
+            norm_layer = norm_layer, 
+            activation = activation, 
+            dropout = dropout, 
+            share_hidden_layer = False, 
+            device = device
+        )
+        
+        if isinstance(reduce, str):
+            self.reduce = self._reduce_fn_[reduce]
+        else:
+            self.reduce = reduce
+        
+    def forward(self, state: torch.Tensor, action: Optional[torch.Tensor]=None, reduce: bool=True):
+        if action is not None:
+            state = torch.cat([state, action], dim=-1)
+        output = self.output_layer(self.backend(state))
+        if reduce: 
+            return self.reduce(output)
+        else:
+            return output
         
 class C51DQN(nn.Module):
     def __init__(self, 
@@ -77,8 +146,11 @@ class C51DQN(nn.Module):
                  v_min: float=0.0, 
                  v_max: float=200.0, 
                  device: Union[str, int, torch.device]="cpu", 
-                 hidden_dims: Union[int, Sequence[int]]=[], 
-                 linear_layer: Optional[nn.Module]=nn.Linear
+                 *, 
+                 hidden_dims: Union[int, Sequence[int]] = [], 
+                 norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+                 activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+                 dropout: Optional[Union[float, Sequence[float]]] = None, 
                  ):
         super().__init__()
         self.actor_type = "C51Actor"
@@ -101,15 +173,19 @@ class C51DQN(nn.Module):
             input_dim = input_dim, 
             output_dim = output_dim_adv*num_atoms, 
             hidden_dims = hidden_dims, 
+            norm_layer = norm_layer, 
+            activation = activation, 
+            dropout = dropout, 
             device = device, 
-            linear_layer = linear_layer
         )
         self.value_output_layer = MLP(
             input_dim = input_dim, 
             output_dim = output_dim_value*num_atoms, 
             hidden_dims = hidden_dims, 
+            norm_layer = norm_layer, 
+            activation = activation, 
+            dropout = dropout, 
             device = device, 
-            linear_layer = linear_layer
         )
         
     def forward(self, state: torch.Tensor):

@@ -11,6 +11,7 @@ def miniblock(
     output_dim: int = 0,
     norm_layer: Optional[ModuleType] = None,
     activation: Optional[ModuleType] = None,
+    dropout: Optional[ModuleType] = None, 
     linear_layer: ModuleType = nn.Linear,
     *args, 
     **kwargs
@@ -22,6 +23,8 @@ def miniblock(
         layers += [norm_layer(output_dim)]  # type: ignore
     if activation is not None:
         layers += [activation()]
+    if dropout is not None and dropout > 0:
+        layers += [nn.Dropout(dropout)]
     return layers
 
 
