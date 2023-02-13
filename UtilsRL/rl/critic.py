@@ -83,9 +83,9 @@ class Critic(nn.Module):
 
 class DoubleCritic(nn.Module):
     _reduce_fn_ = {
-        "min": partial(torch.min, dim=0), 
-        "max": partial(torch.max, dim=0), 
-        "average": partial(torch.mean, dim=0)
+        "min": lambda x: torch.min(x, dim=0)[0], 
+        "max": lambda x: torch.max(x, dim=0)[0], 
+        "mean": lambda x: torch.mean(x, dim=0)[0]
     }
     def __init__(self, 
                  backend: nn.Module, 

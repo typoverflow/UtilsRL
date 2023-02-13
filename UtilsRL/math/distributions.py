@@ -17,7 +17,7 @@ class TanhNormal(Normal):
         
     def log_prob(self, 
                  value: torch.Tensor, 
-                 pre_tanh_value: bool=False
+                 pre_tanh_value: bool=False, 
                  ):
         if not pre_tanh_value:
             pre_value = torch.clip(value, -1.0+1e-6, 1.0-1e-6)

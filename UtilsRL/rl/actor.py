@@ -371,8 +371,30 @@ class ClippedGaussianActor(GaussianActor):
         self.actor_type = "ClippedGaussianActor"
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
-        action, logprob, info = super().sample(input, deterministic, return_mean_logstd)
-        return torch.clip(action, min=-1, max=1), logprob, info
+        mean, logstd = self.forward(input)
+        dist = Normal(torch.tanh(mean), logstd.exp())
+        if deterministic:
+            action, logprob = dist.mean, None
+        elif self.reparameterize:
+            action = dist.rsample()
+            logprob = dist.log_prob(action).sum(-1, keepdim=True)
+        else:
+            action = dist.sample()
+            logprob = dist.log_prob(action).sum(-1, keepdim=True)
+        
+        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
+        return torch.clip(action, min=-1.0, max=1.0), logprob, info
+            
+    def evaluate(self, state: torch.Tensor, action: torch.Tensor):
+        """Evaluate the action given the state. Note that entropy will also be returned. 
+
+        :param state: state of the environment.
+        :param action: action to be evaluated.
+        """
+        mean, logstd = self(state)
+        dist = Normal(torch.tanh(mean), logstd.exp())
+        return dist.log_prob(action).sum(-1, keepdim=True), dist.entropy().sum(-1, keepdim=True)
+
 
 class CategoricalActor(BaseActor):
     """Actor which samples from a categorical distribution whose logits are predicted by networks. 

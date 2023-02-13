@@ -20,7 +20,10 @@ def miniblock(
     activation."""
     layers: List[nn.Module] = [linear_layer(input_dim, output_dim, *args, **kwargs)]
     if norm_layer is not None:
-        layers += [norm_layer(output_dim)]  # type: ignore
+        if isinstance(norm_layer, nn.Module):
+            layers += [norm_layer(output_dim)]
+        else:
+            layers += [nn.LayerNorm(output_dim)]
     if activation is not None:
         layers += [activation()]
     if dropout is not None and dropout > 0:

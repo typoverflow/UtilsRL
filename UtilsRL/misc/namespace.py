@@ -106,13 +106,13 @@ class NameSpaceMeta(type):
             return default
 
     def keys(cls):
-        return cls.__dict__.keys()
+        return cls.__data_as_dict__().keys()
 
     def items(cls):
-        return cls.__dict__.items()
+        return cls.__data_as_dict__().items()
 
     def values(cls):
-        return cls.__dict__.values()
+        return cls.__data_as_dict__().values()
             
     def as_dict(cls):
         def as_dict_helper(v):

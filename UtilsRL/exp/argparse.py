@@ -31,7 +31,8 @@ def get_key(_key):
     
 def parse_cmd_args(convert=True):
     cmd_parser = argparse.ArgumentParser()
-    _, cmd_args = cmd_parser.parse_known_args()
+    cmd_parser.add_argument("config", help="the path of config file")
+    config_args, cmd_args = cmd_parser.parse_known_args()
     num = len(cmd_args)//2
     cmd_args = dict(zip([get_key(cmd_args[2*i]) for i in range(num)], [cmd_args[2*i+1] for i in range(num)]))
     args = NameSpace("cmd_args", {}, nested=True) if convert else {}
@@ -45,22 +46,9 @@ def parse_cmd_args(convert=True):
                 this[subkey] = this.get(subkey, {})
             this = this[subkey]
         this[keys[-1]] = safe_eval(value)
-    return args
-    
-def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpaceMeta, Dict[str, Any]]:
-    """Parse args from json file, yaml, python file or plain old dict. \
-        Command-line argumnets will be parsed as well, and will be used to overwrite \
-        the init arguments. 
-    
-    :param path: can be `str` or python `module` object. If it is a string, it will be \
-            interpreted as the path to the config file. If it is a python module, \
-            then its attributes will be extracted to from an argument dict. 
-    :param convert: whether to convert the final argument dict to :class:`~UtilsRL.misc.NameSpace`, \
-            which brings lots of convenience. Default to `True`. 
-    """
-    
-    cmd_args = parse_cmd_args(convert=convert)
-    
+    return config_args.config, args
+
+def parse_file_args(path, convert=True):
     # parse args from config files or modules
     if isinstance(path, str):
         if path.endswith(".json"):
@@ -83,6 +71,25 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
         file_args = {}
     
     file_args = NameSpace("args", file_args, nested=True) if convert else file_args
+    return file_args
+    
+
+def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpaceMeta, Dict[str, Any]]:
+    """Parse args from json file, yaml, python file or plain old dict. \
+        Command-line argumnets will be parsed as well, and will be used to overwrite \
+        the init arguments. 
+    
+    :param path: can be `str` or python `module` object. If it is a string, it will be \
+            interpreted as the path to the config file. If it is a python module, \
+            then its attributes will be extracted to from an argument dict. 
+    :param convert: whether to convert the final argument dict to :class:`~UtilsRL.misc.NameSpace`, \
+            which brings lots of convenience. Default to `True`. 
+    """
+    
+    cmd_path, cmd_args = parse_cmd_args(convert=convert)
+    
+    file_args = parse_file_args(path or cmd_path, convert=convert)
+
         
     # update with cmd args
     def traverse_add(old, new, current_key=""):

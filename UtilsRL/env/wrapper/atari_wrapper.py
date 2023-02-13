@@ -10,20 +10,12 @@ import cv2
 import gym
 import numpy as np
 
+from UtilsRL.env.wrapper.compat import _parse_reset_result, _parse_step_result, _format_reset_result, _format_step_result
+
 try:
     import envpool
 except ImportError:
     envpool = None
-
-
-def _parse_reset_result(reset_result):
-    contains_info = (
-        isinstance(reset_result, tuple) and len(reset_result) == 2
-        and isinstance(reset_result[1], dict)
-    )
-    if contains_info:
-        return reset_result[0], reset_result[1], contains_info
-    return reset_result, {}, contains_info
 
 
 class NoopResetEnv(gym.Wrapper):
