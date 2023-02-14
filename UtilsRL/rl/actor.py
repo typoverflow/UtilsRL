@@ -216,7 +216,7 @@ class GaussianActor(BaseActor):
             self.register_buffer("logstd", torch.tensor(fix_logstd))
         elif not conditioned_logstd:
             self._logstd_is_layer = False
-            self.logstd = nn.Parameter(-0.5 * torch.ones([self.output_dim]), requires_grad=True)
+            self.logstd = nn.Parameter(torch.zeros([self.output_dim]), requires_grad=True)
         else:
             self._logstd_is_layer = True
             self.output_dim = output_dim = 2*output_dim
@@ -372,7 +372,8 @@ class ClippedGaussianActor(GaussianActor):
         
     def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
         mean, logstd = self.forward(input)
-        dist = Normal(torch.tanh(mean), logstd.exp())
+        mean = torch.tanh(mean)
+        dist = Normal(mean, logstd.exp())
         if deterministic:
             action, logprob = dist.mean, None
         elif self.reparameterize:
