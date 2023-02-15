@@ -374,14 +374,14 @@ class GaussianActor(BaseActor):
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
         return action, logprob, info
     
-    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_dist: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
         """Evaluate the action at given obs. 
         
         Parameters
         ----------
         obs : The observation, should be torch.Tensor. 
         action :  The action, shoild torch.Tensor. 
-        return_mean_logstd :  Whether to return the mean and logstd of the action distrbution at obs in info dict. 
+        return_dist :  Whether to return the action distrbution at obs in info dict. 
         
         Returns
         -------
@@ -392,7 +392,7 @@ class GaussianActor(BaseActor):
         """
         mean, logstd = self(obs)
         dist = Normal(mean, logstd.exp())
-        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
+        info = {"dist": dist} if return_dist else {}
         return dist.log_prob(action).sum(-1, keepdim=True), info
 
 
@@ -478,14 +478,14 @@ class SquashedGaussianActor(GaussianActor):
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
         return action, logprob, info
     
-    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_dist: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
         """Evaluate the action at given obs. 
         
         Parameters
         ----------
         obs : The observation, should be torch.Tensor. 
         action :  The action, shoild torch.Tensor. 
-        return_mean_logstd :  Whether to return the mean and logstd of the action distrbution at obs in info dict. 
+        return_dist :  Whether to return the action distrbution at obs in info dict. 
         
         Returns
         -------
@@ -496,7 +496,7 @@ class SquashedGaussianActor(GaussianActor):
         """
         mean, logstd = self(obs)
         dist = TanhNormal(mean, logstd.exp())
-        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else False
+        info = {"dist": dist} if return_dist else False
         return dist.log_prob(action).sum(-1, keepdim=True), info
     
     
@@ -583,14 +583,14 @@ class ClippedGaussianActor(GaussianActor):
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
         return torch.clip(action, min=-1.0, max=1.0), logprob, info
             
-    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_dist: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
         """Evaluate the action at given obs. 
         
         Parameters
         ----------
         obs : The observation, should be torch.Tensor. 
         action :  The action, shoild torch.Tensor. 
-        return_mean_logstd :  Whether to return the mean and logstd of the action distrbution at obs in info dict. 
+        return_dist :  Whether to return the action distrbution at obs in info dict. 
         
         Returns
         -------
@@ -602,7 +602,7 @@ class ClippedGaussianActor(GaussianActor):
         mean, logstd = self(obs)
         mean = torch.tanh(mean)
         dist = Normal(mean, logstd.exp())
-        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
+        info = {"dist": dist} if return_dist else {}
         return dist.log_prob(action).sum(-1, keepdim=True), info
 
 
@@ -704,27 +704,24 @@ class CategoricalActor(BaseActor):
         info = {"probs": probs} if return_probs else {}
         return action, logprob, info
     
-    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_probs: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_dist: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
         """Evaluate the action at given obs. 
         
         Parameters
         ----------
         obs : The observation, should be torch.Tensor. 
         action :  The action, shoild torch.Tensor. 
-        return_probs :  Whether to return the raw probabilities of the categorical distribution. 
+        return_dist :  Whether to return the categorical action distribution at obs. 
         
         Returns
         -------
         (torch.Tensor, Dict) :  The log-probability of action at obs and the info dict. 
-
-        :param state: state of the environment.
-        :param act
         """
 
         if len(action.shape) == 2:
             action = action.view(-1)
         probs = self.forward(obs)
         dist = Categorical(probs=probs)
-        info = {"probs": probs} if return_probs else {}
+        info = {"dist": dist} if return_dist else {}
         return dist.log_prob(action).unsqueeze(-1), info
             

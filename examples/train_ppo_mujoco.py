@@ -76,7 +76,8 @@ def ppo_update(data_batch):
         
     actor_loss_value = critic_loss_value = entropy_loss_value = actor_logstd = actor_mean = tot_approx_kl = clip_fraction = 0
     for actor_step in range(args.repeat_step):
-        new_logprob, new_entropy = actor.evaluate(obs_batch, action_batch)
+        new_logprob, info = actor.evaluate(obs_batch, action_batch, return_dist=True)
+        new_entropy = info["dist"].entropy().sum(-1, keepdim=True)
         mean, logstd = actor.forward(obs_batch)
         ratio = torch.exp(new_logprob - logprob_batch)
         approx_kl = (logprob_batch - new_logprob).mean().item()

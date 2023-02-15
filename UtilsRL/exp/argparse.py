@@ -31,7 +31,7 @@ def get_key(_key):
     
 def parse_cmd_args(convert=True):
     cmd_parser = argparse.ArgumentParser()
-    cmd_parser.add_argument("config", help="the path of config file")
+    cmd_parser.add_argument("--config", type=str, default=None, help="the path of config file")
     config_args, cmd_args = cmd_parser.parse_known_args()
     num = len(cmd_args)//2
     cmd_args = dict(zip([get_key(cmd_args[2*i]) for i in range(num)], [cmd_args[2*i+1] for i in range(num)]))
