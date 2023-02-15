@@ -95,7 +95,7 @@ class RunningNormalizer(BaseNormalizer, nn.Module):
         
         self.register_buffer("count", torch.tensor(0))
         
-    def _initialize(self, shape: Union[Sequence[int], int]):
+    def _initialize(self, shape: Union[Sequence[int], int]) -> None:
         if shape is None:
             raise ValueError("shape must be specified for Running Nomralizer.")
         if isinstance(shape, int):
@@ -180,7 +180,7 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
     std :  The static std of the normalizer. Default to None.
     var :  The static var of the normalizer. Default to None.
     """
-    def __init__(self, mean=None, std=None, var=None, eps=1e-8):
+    def __init__(self, mean=None, std=None, var=None, eps=1e-8) -> None:
         BaseNormalizer.__init__(self)
         nn.Module.__init__(self)
         self.register_buffer("_initialized", torch.tensor(False))
@@ -193,11 +193,7 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
             else:
                 raise KeyError("mean and var must be specified at the same time.")
         
-    def _initialize(self,
-                    mean: Optional[torch.Tensor], 
-                    std: Optional[torch.Tensor], 
-                    var: Optional[torch.Tensor]
-                    ):
+    def _initialize(self,mean: Optional[torch.Tensor], std: Optional[torch.Tensor], var: Optional[torch.Tensor]) -> None:
         if mean is None:
             raise ValueError("Mean must be provided when initializing StaticNormalizer!")
         if std is None and var is None:
@@ -220,7 +216,7 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
             
         self._initialized.data = torch.tensor(True).to(mean.device)
         
-    def transform(self, x: torch.Tensor, inverse: bool=False):
+    def transform(self, x: torch.Tensor, inverse: bool=False) -> torch.Tensor:
         """
         Transform the input data by data = (data - static_mean) / static_std. 
 
@@ -243,7 +239,7 @@ class StaticNormalizer(BaseNormalizer, nn.Module):
             return x * self.std + self.mean
         return (x-self.mean) / (self.std)
     
-    def update(self, data: torch.Tensor):
+    def update(self, data: torch.Tensor) -> None:
         """Use the input data to update the normalizer statistics. 
 
         Parameters
@@ -282,10 +278,7 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
         if min is not None and max is not None:
             self._initialize(min=min, max=max)
         
-    def _initialize(self, 
-                    min: Optional[torch.Tensor], 
-                    max: Optional[torch.Tensor]
-                    ):
+    def _initialize(self, min: Optional[torch.Tensor], max: Optional[torch.Tensor]) -> None:
         if min is None or max is None:
             raise ValueError("Both min and max must be provided when initializing MinMaxNormalizer!")
         if hasattr(self, "min"):
@@ -299,7 +292,7 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
         
         self._initialized.data = torch.tensor(True).to(min.device)
         
-    def transform(self, x: torch.Tensor, inverse: bool=False):
+    def transform(self, x: torch.Tensor, inverse: bool=False) -> torch.Tensor:
         """
         Transform the input data by data = (data - min) / (max - min). 
 
@@ -322,7 +315,7 @@ class MinMaxNormalizer(BaseNormalizer, nn.Module):
             return x*(self.max - self.min) + self.min
         return (x-self.min) / (self.max - self.min+self.eps)
     
-    def update(self, x: torch.Tensor):
+    def update(self, x: torch.Tensor) -> None:
         """Use the input data to update the normalizer statistics. 
 
         Parameters

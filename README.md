@@ -12,7 +12,8 @@ pip install UtilsRL
 After installation, you may still need to configure some other dependencies based on your platform, such as PyTorch.
 
 ## Features & Usage
-See [the documentation](https://utilsrl.readthedocs.io) for details. We are still working on the docs, and the final formal version v0.5.0 is comming up soon once we finish the docs. 
+<!-- See [the documentation](https://utilsrl.readthedocs.io) for details.  -->
+We are still working on the docs, and the docs will be published as soon as possible.  
 
 Here we list some highlight features of UtilsRL:
 - **Extremely easy-to-use and research friendly argument parsing**. `UtilsRL.exp.argparse` supports several handy features for research:
