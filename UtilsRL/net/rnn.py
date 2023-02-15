@@ -8,6 +8,17 @@ from UtilsRL.net.basic import miniblock, EnsembleLinear
 ModuleType = Type[nn.Module]
 
 class Recurrent(nn.Module):
+    """
+    Creates a Recurrent Neural Network Block.
+
+    Parameters
+    ----------
+    input_dim :  The dimensions of input. 
+    rnn_hidden_dim :  The dimensions of rnn hidden. Default is 128.
+    rnn_layer_num :  The num of rnn layers, each layer if of shape `rnn_hidden_dim`. Default is 1.
+    device :  The device to run the model on. Default is cpu.
+    rnn_type :  The ModuleType to use. Default is nn.GRU. 
+    """
     def __init__(
         self, 
         input_dim: int, 

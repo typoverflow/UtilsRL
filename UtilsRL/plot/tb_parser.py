@@ -8,6 +8,7 @@ from UtilsRL.monitor import Monitor
 
 from typing import Any, Optional, List, Union, Callable, Dict, Sequence
 
+
 def log2pd(
     log_dir: str, 
     tag_filter: Callable[[str], bool] = lambda x: True, 
@@ -15,7 +16,21 @@ def log2pd(
     max_step: Optional[int] = None, 
     size_guidance: Optional[Dict[str, int]] = None
 ) -> pd.DataFrame:
-    """Parse the given tensorboard event file and return a pandas.DataFame object."""
+    """
+    Reads a log and returns a dataframe.
+    
+    Parameters
+    ----------
+    log_dir :  Directory to read from. Must be one event file in the log directory.
+    tag_filter :  Filter to apply to tags. If this function returns True the event will be filtered out.
+    step_interval :  Interval between step values. Default is 1.
+    max_step :  Maximum step value to consider. Default is None which means no limit.
+    size_guidance :  Used by EventAccumulator.
+    
+    Returns
+    -------
+    A pandas.DataFrame containing the events
+    """
     file_name = [f for f in os.listdir(log_dir) if "tfevents" in f]
     if len(file_name) != 1:
         raise ValueError(f"There should be only one event file in the log directory, got {file_name}")
@@ -38,8 +53,8 @@ def log2pd(
     ret_pd = ret_pd.iloc[::step_interval]
     if max_step:
         ret_pd = ret_pd[ret_pd["step"] <= max_step]
-    # ret_pd.set_index("step", inplace=True)
     return ret_pd
+
 
 def logs2pd(
     log_dirs: Union[Dict[str, Union[Sequence[str], str]], Sequence[str], str], 
@@ -47,9 +62,22 @@ def logs2pd(
     step_interval: int = 1,
     max_step: Optional[int] = None, 
     size_guidance: Optional[Dict[str, int]] = None
-):
-    """Parse the given tensorboard event files and return a unioned pandas.DataFrame object, \
-        where the column name identifies each log file with their given name in log_dirs."""
+) -> pd.DataFrame:
+    """
+    Extracts tensorboard events from log directories and returns a pandas DataFrame. This function is useful for converting a list of log directories into a pandas DataFrame.
+    
+    Parameters
+    ----------
+    log_dirs :  A string or list of strings containing the names of the log directories to be extracted.
+    tag_filter :  A function that takes a string and returns True if the string should be included in the output DataFrame.
+    step_interval :  The interval between step events. Default is 1.
+    max_step :  The maximum number of steps to be extracted. Default is None which means no limit.
+    size_guidance :  Used by EventAccumulator.
+    
+    Returns
+    -------
+    A unioned pandas DataFrame
+    """
     dfs = list()
     name_log_mapping = dict()
     if isinstance(log_dirs, str):

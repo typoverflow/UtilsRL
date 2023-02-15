@@ -8,6 +8,30 @@ from UtilsRL.net.basic import miniblock, EnsembleLinear
 ModuleType = Type[nn.Module]
 
 class MLP(nn.Module):
+    """
+    Creates an MLP module. 
+    
+    Parameters
+    ----------
+    input_dim :  The number of input dimensions.
+    output_dim :  The number of output dimensions. The value of 0 indicates a cascade model, and the output is \
+                activated; while other non-negative values indicate a standalone module, and the output is not activated. Default to 0.
+    hidden_dims :  The list of numbers of hidden dimensions. Default is [].
+    norm_layer :  List_or_Single[bool, nn.Module(), None]. When `norm_layer` is a List, its length should be equal to the num of layers
+                in the created MLP, and each element specifies the operation on each layer. When `norm_layer` is a single element, it will be broadcast 
+                to a List as long as the module. When `norm_layer` is `None` or `False`, no normalization will be added; when `True`, we will use `nn.LayerNorm`; 
+                otherwise `norm_layer()` will be used. 
+    activation :  List_or_Single[bool, nn.Module(), None]. When `activation` is a List, its length should be equal to the num of layers
+                in the created MLP, and each element specifies the operation on each layer. When `activation` is a single element, it will be broadcast 
+                to a List as long as the module. When `activation is `None` or `False`, no activation will be added; when `True`, we will use `nn.ReLU`; 
+                otherwise `norm_layer()` will be used. 
+    dropout : List_or_Single[bool, float, None]. When `dropout` is a List, its length should be equal to the num of layers
+                in the created MLP, and each element specifies the operation on each layer. When `dropout` is a single element, it will be broadcast 
+                to a List as long as the module. When `dropout is `None` or `False` or 0, no dropout will be added; otherwise a layer of `nn.Dropout(dropout)`
+                will be added at the end of the layer. 
+    device :  The device to run on. Default is " cpu ".
+    linear_layer :  The linear layer module. Default to nn.Linear.
+    """
     def __init__(
         self, 
         input_dim: int, 
@@ -64,6 +88,31 @@ class MLP(nn.Module):
 
 
 class EnsembleMLP(nn.Module):
+    """
+    Creates MLP module with model ensemble.
+
+    Parameters
+    ----------
+    input_dim :  The number of input dimensions.
+    output_dim :  The number of output dimensions. The value of 0 indicates a cascade model, and the output is \
+                activated; while other non-negative values indicate a standalone module, and the output is not activated. Default to 0.
+    ensemble_size :  The number of models to ensemble. Default is 1. 
+    hidden_dims :  The list of numbers of hidden dimensions. Default is [].
+    norm_layer :  List_or_Single[bool, nn.Module(), None]. When `norm_layer` is a List, its length should be equal to the num of layers
+                in the created MLP, and each element specifies the operation on each layer. When `norm_layer` is a single element, it will be broadcast 
+                to a List as long as the module. When `norm_layer` is `None` or `False`, no normalization will be added; when `True`, we will use `nn.LayerNorm`; 
+                otherwise `norm_layer()` will be used. 
+    activation :  List_or_Single[bool, nn.Module(), None]. When `activation` is a List, its length should be equal to the num of layers
+                in the created MLP, and each element specifies the operation on each layer. When `activation` is a single element, it will be broadcast 
+                to a List as long as the module. When `activation is `None` or `False`, no activation will be added; when `True`, we will use `nn.ReLU`; 
+                otherwise `norm_layer()` will be used. 
+    dropout : List_or_Single[bool, float, None]. When `dropout` is a List, its length should be equal to the num of layers
+                in the created MLP, and each element specifies the operation on each layer. When `dropout` is a single element, it will be broadcast 
+                to a List as long as the module. When `dropout is `None` or `False` or 0, no dropout will be added; otherwise a layer of `nn.Dropout(dropout)`
+                will be added at the end of the layer. 
+    share_hidden_layer :  List_of_Single[bool]. The list of indicators of whether each layer should be shared or not. Single values will be broadcast to as long as the lengths of the layers. 
+    device :  The device to run on. Default is " cpu ".
+    """
     def __init__(
         self, 
         input_dim: int, 

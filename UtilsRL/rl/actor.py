@@ -1,4 +1,4 @@
-from typing import Dict, Optional, Any, Sequence, Union
+from typing import Dict, Optional, Any, Sequence, Union, Type, Tuple
 
 import torch
 import torch.nn as nn
@@ -10,61 +10,79 @@ from torch.distributions import Categorical, Normal
 
 from abc import ABC, abstractmethod
 
+ModuleType = Type[nn.Module]
+
 class BaseActor(nn.Module):
-    """BaseActor interface. 
-    
-    All actors should implement `forward`, `sample` and `evaluate`. 
     """
-    def __init__(self):
+    BaseActor interface. 
+    """
+    def __init__(self) -> Any:
         super().__init__()
         
     @abstractmethod
-    def forward(self, state: torch.Tensor, *args, **kwargs):
-        """Forward pass of the actor. 
+    def forward(self, obs: torch.Tensor, *args, **kwargs) -> Any:
+        """Forward pass of the actor, only handles the inference of internal model. 
         
-        :param state: state / obs of the environment. 
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor. 
+        
         """
         raise NotImplementedError
     
     @abstractmethod
-    def sample(self, state: torch.Tensor, *args, **kwargs):
-        """Sampling procedure of the actor.
+    def sample(self, obs: torch.Tensor, *args, **kwargs) -> Any:
+        """Sampling procedure.
         
-        :param state: state / obs of the environment.
+        Parameters
+        ----------
+        obs :  The observation, shoule be torch.Tensor.
         """
         raise NotImplementedError
     
     @abstractmethod
-    def evaluate(self, state, action, *args, **kwargs):
-        """Evaluate the log_prob of the given `action`. 
+    def evaluate(self, obs, action, *args, **kwargs) -> Any:
+        """Evaluate the log_prob of the action. 
         
-        :param state: state / obs of the environment.
-        :param action: action to evaluate. 
+        obs :  The observation, shoule be torch.Tensor.
+        action :  The action for evaluation, shoule be torch.Tensor with the sample size as `obs`.
         """
         raise NotImplementedError
 
 class DeterministicActor(BaseActor):
-    """Actor which outputs a deterministic action for a given state. 
+    """
+    Deterministic Actor, which maps the given obs to a deterministic action. 
     
-    Note that the output action is not bounded within [-1, 1].
-
-    :param backend: feature extraction backend of the actor. 
-    :param input_dim: input dimension of the actor. When using `backend`, this should match the output dimension of `backend`. 
-    :param output_dim: output dimension of the actor. 
-    :param device: device of the actor. 
-    :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
-    :param linear_layer: linear type of the output layers. 
+    Notes
+    -----
+    All actors creates an extra post-processing module which maps the output of `backend` to
+      the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+      further customize the post-processing module. This is useful when you hope to, for example, 
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
     """
     
-    def __init__(self, 
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu", 
-                 hidden_dims: Union[int, Sequence[int]]=[],
-                 ensemble_size: int = 1, 
-                 share_hidden_layer: Union[Sequence[bool], bool] = False
-                 ):
+    def __init__(
+        self, 
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        device: Union[str, int, torch.device]="cpu", 
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Sequence[int] = [], 
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
         super().__init__()
         self.actor_type = "DeterministicActor"
         self.backend = backend
@@ -80,6 +98,9 @@ class DeterministicActor(BaseActor):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device
             )
         elif isinstance(ensemble_size, int) and ensemble_size > 1:
@@ -87,6 +108,9 @@ class DeterministicActor(BaseActor):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device, 
                 ensemble_size = ensemble_size, 
                 share_hidden_layer = share_hidden_layer
@@ -95,113 +119,175 @@ class DeterministicActor(BaseActor):
             raise ValueError(f"ensemble size should be int >= 1.")
     
     def forward(self, input: torch.Tensor):
-        """Forward pass of the actor. 
-        
-        :param input: state / obs of the environment. 
-        """
         return self.output_layer(self.backend(input))
     
-    def sample(self, input: torch.Tensor):
-        """Sampling process of the actor. However, deterministic actor directly take the output \
-            as actions, and there is no further operations. 
+    def sample(self, obs: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure, note that in DeterministicActor we don't do any operation on the sample. 
 
-        :param input: state / obs of the environent. 
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor.  
+        
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
         """
-        return self(input)
+        return self(obs), None, {}
     
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor):
-        """Determinisitic actors do not support evaluation. This will raise an error.
-
-        :param state: state / obs of the environment.
-        :param action: action to evaluate.
+    def evaluate(self, *args, **kwargs) -> Any:
         """
-        raise NotImplementedError("Evaluation shouldn't be called for SquashedDeterministicActor.")
+        Evaluate the log_prob of the action. Note that this actor does not support evaluation.  
+        """
+        raise NotImplementedError("Evaluation shouldn't be called for DeterministicActor.")
         
         
 class SquashedDeterministicActor(DeterministicActor):
-    """A deterministic actor whose output is squashed into [-1, 1] using `Tanh`. 
-    
-    Parameters are kept the same as :class:`~UtilsRL.rl.actor.DeterministicActor`.
     """
+    Squashed Deterministic Actor, which maps the given obs to a deterministic action squashed into [-1, 1] by tanh. 
     
-    def __init__(self,
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu", 
-                 hidden_dims: Union[int, Sequence[int]]=[],
-                 ensemble_size: int = 1, 
-                 share_hidden_layer: Union[Sequence[bool], bool] = False
-                 ):
-        super().__init__(backend, input_dim, output_dim, device, hidden_dims, ensemble_size, share_hidden_layer)
+    Notes
+    -----
+    1. The output of this actor is [-1, 1] by default. 
+    2. All actors creates an extra post-processing module which maps the output of `backend` to
+        the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+        further customize the post-processing module. This is useful when you hope to, for example, 
+        create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
+    """
+    def __init__(
+        self,
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        device: Union[str, int, torch.device]="cpu", 
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Union[int, Sequence[int]]=[],
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
+        super().__init__(backend, input_dim, output_dim, device, ensemble_size=ensemble_size, hidden_dims=hidden_dims, norm_layer=norm_layer, activation=activation, dropout=dropout, share_hidden_layer=share_hidden_layer)
         self.actor_type = "SqushedDeterministicActor"
         
-    def sample(self, input: torch.Tensor):
-        """Sampling process of actor. Note that output is squashed into [-1, 1] with `Tanh`.
+    def sample(self, obs: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure. The action is squashed into [-1, 1] by tanh.
+
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor.  
         
-        :param input: state / obs of the environent. 
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
         """
-        action_prev_tanh = super().forward(input)
-        return torch.tanh(action_prev_tanh)
+        action_prev_tanh = super().forward(obs)
+        return torch.tanh(action_prev_tanh), None, {}
             
 
 class ClippedDeterministicActor(DeterministicActor):
-    """A deterministic actor whose output is hard-clipped into [-1, 1]. 
-    
-    Parameters are kept the same as :class:`~UtilsRL.rl.actor.DeterministicActor`.
     """
+    Clipped Deterministic Actor, which maps the given obs to a deterministic action clipped into [-1, 1]. 
     
-    def __init__(self, 
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu", 
-                 hidden_dims: Union[int, Sequence[int]]=[], 
-                 ensemble_size: int = 1, 
-                 share_hidden_layer: Union[Sequence[bool], bool] = False
-                 ):
-        super().__init__(backend, input_dim, output_dim, device, hidden_dims, ensemble_size, share_hidden_layer)
+    Notes
+    -----
+    1. The output of this actor is [-1, 1] by default. 
+    2. All actors creates an extra post-processing module which maps the output of `backend` to
+        the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+        further customize the post-processing module. This is useful when you hope to, for example, 
+        create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
+    """
+    def __init__(
+        self, 
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        device: Union[str, int, torch.device]="cpu", 
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Sequence[int] = [], 
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
+        super().__init__(backend, input_dim, output_dim, device, ensemble_size=ensemble_size, hidden_dims=hidden_dims, norm_layer=norm_layer, activation=activation, dropout=dropout, share_hidden_layer=share_hidden_layer)
         self.actor_type = "ClippedDeterministicActor"
         
-    def sample(self, input: torch.Tensor):
-        """Sampling process of actor. Note that output is hard-clipped into [-1, 1].
+    def sample(self, obs: torch.Tensor, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure. The action is hard-clipped into [-1, 1].
 
-        :param input: state / obs of the environent. 
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor.  
+        
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
         """
-        action = super().forward(input)
-        return torch.clip(action, min=-1, max=1)
+        action = super().forward(obs)
+        return torch.clip(action, min=-1, max=1), None, {}
     
     
 class GaussianActor(BaseActor):
-    """Actor which samples from a gaussian distribution whose mean and std are predicted by networks. 
-    
-    :param backend: feature extraction backend of the actor. 
-    :param input_dim: input dimension of the actor. When using `backend`, this should match the output dimension of `backend`. 
-    :param output_dim: output dimension of the actor. 
-    :param device: device of the actor. 
-    :param reparameterize: whether to use reparameterization trick when sampling. 
-    :param conditioned_logstd: whether condition the logstd on inputs. 
-    :param fix_logstd: if not `None`, actor will fix the logstd of the sampling distribution. 
-    :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
-    :param linear_layer: linear type of the output layers. 
-    :param logstd_min: minimum value of the logstd, will be used to clip the logstd value. 
-    :param logstd_max: maximum value of the logstd, will be used to clip the logstd value.
     """
+    Gaussian Actor, which maps the given obs to a parameterized Gaussian Distribution over the action space. 
     
-    def __init__(self, 
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu", 
-                 reparameterize: bool=True, 
-                 conditioned_logstd: bool=True, 
-                 fix_logstd: Optional[float]=None, 
-                 hidden_dims: Union[int, Sequence[int]]=[],
-                 ensemble_size: int=1, 
-                 share_hidden_layer: Union[Sequence[bool], bool]=False, 
-                 logstd_min: int = -20, 
-                 logstd_max: int = 2,
-                 ):
+    Notes
+    -----
+    All actors creates an extra post-processing module which maps the output of `backend` to
+      the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+      further customize the post-processing module. This is useful when you hope to, for example, 
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    reparameterize : Whether to use the reparameterization trick when sampling. 
+    conditioned_logstd :  Whether the logstd is conditioned on the observation. 
+    fix_logstd :  If not None, the logstd will be set to this value and fixed (un-learnable). 
+    logstd_min: The minimum value of logstd. Default is -20. 
+    logstd_max: The maximum value of logstd. Default is 2. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
+    """
+    def __init__(
+        self, 
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        reparameterize: bool=True, 
+        conditioned_logstd: bool=True, 
+        fix_logstd: Optional[float]=None, 
+        logstd_min: int = -20, 
+        logstd_max: int = 2,
+        device: Union[str, int, torch.device]="cpu", 
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Union[int, Sequence[int]]=[],
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
         super().__init__()
         
         self.actor_type = "GaussianActor"
@@ -228,6 +314,9 @@ class GaussianActor(BaseActor):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device
             )
         elif isinstance(ensemble_size, int) and ensemble_size > 1:
@@ -235,6 +324,9 @@ class GaussianActor(BaseActor):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device, 
                 ensemble_size = ensemble_size, 
                 share_hidden_layer = share_hidden_layer
@@ -246,13 +338,6 @@ class GaussianActor(BaseActor):
         self.register_buffer("logstd_max", torch.tensor(logstd_max))
         
     def forward(self, input: torch.Tensor):
-        """Forward pass of the actor, will predict mean and logstd of the distribution for sampling. 
-        
-        Note that if ``fix_logstd`` is not `None`, the logstd will be fixed values; otherwise, if `conditioned_logstd==True`, logstd \
-            will conditione on input; if not, logstd are shared across all inputs. 
-
-        :param input: state / obs of the environent.
-        """
         out = self.output_layer(self.backend(input))
         if self._logstd_is_layer:
             mean, logstd = torch.split(out, self.output_dim // 2, dim=-1)
@@ -262,14 +347,20 @@ class GaussianActor(BaseActor):
         logstd = torch.clip(logstd, min=self.logstd_min, max=self.logstd_max)
         return mean, logstd
     
-    def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd: bool=False):
-        """Sampling process of the actor. 
+    def sample(self, obs: torch.Tensor, deterministic: bool=False, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure. The action is sampled from a Gaussian distribution.
+
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor. 
+        deterministic :  Whether to sample or return the mean action. 
+        return_mean_logstd :  Whether to return the mean and logstd of the Normal distribution.  
         
-        :param input: state / obs of the environent.
-        :param deterministic: whether to use deterministic sampling. If `True`, mean will be returned as action. 
-        :param return_mean_logstd: whether to return mean and logstd of the sampling distribution. If `True`, they will be included in `info` dict
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
         """
-        mean, logstd = self(input)
+        mean, logstd = self(obs)
         dist = Normal(mean, logstd.exp())
         if deterministic:
             action, logprob = dist.mean, None
@@ -283,49 +374,97 @@ class GaussianActor(BaseActor):
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
         return action, logprob, info
     
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor):
-        """Evaluate the action given the state. Note that entropy will also be returned. 
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+        """Evaluate the action at given obs. 
+        
+        Parameters
+        ----------
+        obs : The observation, should be torch.Tensor. 
+        action :  The action, shoild torch.Tensor. 
+        return_mean_logstd :  Whether to return the mean and logstd of the action distrbution at obs in info dict. 
+        
+        Returns
+        -------
+        (torch.Tensor, Dict) :  The log-probability of action at obs and the info dict. 
 
         :param state: state of the environment.
         :param action: action to be evaluated.
         """
-        mean, logstd = self(state)
+        mean, logstd = self(obs)
         dist = Normal(mean, logstd.exp())
-        return dist.log_prob(action).sum(-1, keepdim=True), dist.entropy().sum(-1, keepdim=True)
+        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
+        return dist.log_prob(action).sum(-1, keepdim=True), info
 
 
 class SquashedGaussianActor(GaussianActor):
-    """Actor which samples from a gaussian distribution whose mean and std are predicted by networks. The output action will be \
-        squashed into [-1, 1] with `Tanh`.
-    
-    Parameters are kept the same as :class:`~UtilsRL.rl.actor.GaussianActor`
     """
-    def __init__(self, 
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu",
-                 reparameterize: bool = True, 
-                 conditioned_logstd: bool = True, 
-                 fix_logstd: Optional[float] = None, 
-                 hidden_dims: Union[int, Sequence[int]] = [],
-                 ensemble_size: int=1, 
-                 share_hidden_layer: Union[Sequence[bool], bool]=False,
-                 logstd_min: int = -20, 
-                 logstd_max: int = 2, 
-                 ):
-        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, ensemble_size, share_hidden_layer, logstd_min, logstd_max)
+    Squashed Gaussian Actor, which maps the given obs to a parameterized Gaussian Distribution, followed by a Tanh transformation to squash the action sample to [-1, 1]. 
+    
+    Notes
+    -----
+    1. The output action of this actor is [-1, 1].
+    2. All actors creates an extra post-processing module which maps the output of `backend` to
+      the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+      further customize the post-processing module. This is useful when you hope to, for example, 
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    reparameterize : Whether to use the reparameterization trick when sampling. 
+    conditioned_logstd :  Whether the logstd is conditioned on the observation. 
+    fix_logstd :  If not None, the logstd will be set to this value and fixed (un-learnable). 
+    logstd_min: The minimum value of logstd. Default is -20. 
+    logstd_max: The maximum value of logstd. Default is 2. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
+    """
+    def __init__(
+        self, 
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        reparameterize: bool = True, 
+        conditioned_logstd: bool = True, 
+        fix_logstd: Optional[float] = None, 
+        logstd_min: int = -20, 
+        logstd_max: int = 2, 
+        device: Union[str, int, torch.device]="cpu",
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Union[int, Sequence[int]]=[],
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
+        super().__init__(
+            backend, input_dim, output_dim, reparameterize, conditioned_logstd, fix_logstd, logstd_min, logstd_max, device,  
+            ensemble_size=ensemble_size, 
+            hidden_dims=hidden_dims, 
+            norm_layer=norm_layer, 
+            activation=activation, 
+            dropout=dropout, 
+            share_hidden_layer=share_hidden_layer
+        )
         self.actor_type = "SquashedGaussianActor"
         
-    def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
-        """After sampling from gaussian distributions, samples will be squashed into [-1, 1] with `Tanh`.
+    def sample(self, obs: torch.Tensor, deterministic: bool=False, return_mean_logstd=False, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure. The action is sampled from a Tanh-transformed Gaussian distribution.
+
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor. 
+        deterministic :  Whether to sample or return the mean action. 
+        return_mean_logstd :  Whether to return the mean and logstd of the TanhNormal distribution.  
         
-        :param input: state / obs of the environent.
-        :param deterministic: whether to use deterministic sampling. If `True`, `Tanh(mean)` will be returned as action.
-        :param return_mean_logstd: whether to return mean and logstd of the sampling distribution. If `True`, they will be included in `info` dict. 
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
         """
-        
-        mean, logstd = self.forward(input)
+        mean, logstd = self.forward(obs)
         dist = TanhNormal(mean, logstd.exp())
         if deterministic:
             action, logprob = dist.tanh_mean, None
@@ -339,39 +478,97 @@ class SquashedGaussianActor(GaussianActor):
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
         return action, logprob, info
     
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor):
-        """Evaluate the action given the state. Log-probability will be corrected according to `SAC` paper.
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+        """Evaluate the action at given obs. 
+        
+        Parameters
+        ----------
+        obs : The observation, should be torch.Tensor. 
+        action :  The action, shoild torch.Tensor. 
+        return_mean_logstd :  Whether to return the mean and logstd of the action distrbution at obs in info dict. 
+        
+        Returns
+        -------
+        (torch.Tensor, Dict) :  The log-probability of action at obs and the info dict. 
+
+        :param state: state of the environment.
+        :param action: action to be evaluated.
         """
-        mean, logstd = self(state)
+        mean, logstd = self(obs)
         dist = TanhNormal(mean, logstd.exp())
-        return dist.log_prob(action).sum(-1, keepdim=True), dist.entropy().sum(-1, keepdim=True)
+        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else False
+        return dist.log_prob(action).sum(-1, keepdim=True), info
     
     
 class ClippedGaussianActor(GaussianActor):
-    """Actor which samples from a gaussian distribution whose mean and std are predicted by networks. The output action will be \
-        hard-clippped into [-1, 1].
-    
-    Parameters are kept the same as :class:`~UtilsRL.rl.actor.GaussianActor`
     """
-    def __init__(self, 
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu",
-                 reparameterize: bool = True, 
-                 conditioned_logstd: bool = True, 
-                 fix_logstd: Optional[float] = None, 
-                 hidden_dims: Union[int, Sequence[int]] = [],
-                 ensemble_size: int=1, 
-                 share_hidden_layer: Union[Sequence[bool], bool]=False,
-                 logstd_min: int = -20, 
-                 logstd_max: int = 2, 
-                 ):
-        super().__init__(backend, input_dim, output_dim, device, reparameterize, conditioned_logstd, fix_logstd, hidden_dims, ensemble_size, share_hidden_layer, logstd_min, logstd_max)
+    Clipped Gaussian Actor, which maps the given obs to a parameterized Gaussian Distribution, followed by a hard-clip to force the action sample lies in [-1, 1]. 
+    
+    Notes
+    -----
+    1. The output action of this actor is [-1, 1].
+    2. All actors creates an extra post-processing module which maps the output of `backend` to
+      the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+      further customize the post-processing module. This is useful when you hope to, for example, 
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    reparameterize : Whether to use the reparameterization trick when sampling. 
+    conditioned_logstd :  Whether the logstd is conditioned on the observation. 
+    fix_logstd :  If not None, the logstd will be set to this value and fixed (un-learnable). 
+    logstd_min: The minimum value of logstd. Default is -20. 
+    logstd_max: The maximum value of logstd. Default is 2. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
+    """
+    def __init__(
+        self, 
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        reparameterize: bool = True, 
+        conditioned_logstd: bool = True, 
+        fix_logstd: Optional[float] = None, 
+        logstd_min: int = -20, 
+        logstd_max: int = 2, 
+        device: Union[str, int, torch.device]="cpu",
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Union[int, Sequence[int]]=[],
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
+        super().__init__(
+            backend, input_dim, output_dim, reparameterize, conditioned_logstd, fix_logstd, logstd_min, logstd_max, device,  
+            ensemble_size=ensemble_size, 
+            hidden_dims=hidden_dims, 
+            norm_layer=norm_layer, 
+            activation=activation, 
+            dropout=dropout, 
+            share_hidden_layer=share_hidden_layer
+        )
         self.actor_type = "ClippedGaussianActor"
         
-    def sample(self, input: torch.Tensor, deterministic: bool=False, return_mean_logstd=False):
-        mean, logstd = self.forward(input)
+    def sample(self, obs: torch.Tensor, deterministic: bool=False, return_mean_logstd=False, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure. The action is sampled from a Gaussian distribution, and then hard-clipped to [-1, 1].
+
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor. 
+        deterministic :  Whether to sample or return the mean action. 
+        return_mean_logstd :  Whether to return the mean and logstd of the TanhNormal distribution.  
+        
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
+        """
+        mean, logstd = self.forward(obs)
         mean = torch.tanh(mean)
         dist = Normal(mean, logstd.exp())
         if deterministic:
@@ -386,36 +583,62 @@ class ClippedGaussianActor(GaussianActor):
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
         return torch.clip(action, min=-1.0, max=1.0), logprob, info
             
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor):
-        """Evaluate the action given the state. Note that entropy will also be returned. 
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_mean_logstd: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+        """Evaluate the action at given obs. 
+        
+        Parameters
+        ----------
+        obs : The observation, should be torch.Tensor. 
+        action :  The action, shoild torch.Tensor. 
+        return_mean_logstd :  Whether to return the mean and logstd of the action distrbution at obs in info dict. 
+        
+        Returns
+        -------
+        (torch.Tensor, Dict) :  The log-probability of action at obs and the info dict. 
 
         :param state: state of the environment.
         :param action: action to be evaluated.
         """
-        mean, logstd = self(state)
-        dist = Normal(torch.tanh(mean), logstd.exp())
-        return dist.log_prob(action).sum(-1, keepdim=True), dist.entropy().sum(-1, keepdim=True)
+        mean, logstd = self(obs)
+        mean = torch.tanh(mean)
+        dist = Normal(mean, logstd.exp())
+        info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
+        return dist.log_prob(action).sum(-1, keepdim=True), info
 
 
 class CategoricalActor(BaseActor):
-    """Actor which samples from a categorical distribution whose logits are predicted by networks. 
-    
-    :param backend: feature extraction backend of the actor. 
-    :param input_dim: input dimension of the actor. When using `backend`, this should match the output dimension of `backend`. 
-    :param output_dim: output dimension of the actor. 
-    :param device: device of the actor. 
-    :param hidden_dims: hidden dimension of the MLP between `backend` and the output layer. 
-    :param linear_layer: linear type of the output layers. 
     """
-    def __init__(self, 
-                 backend: nn.Module, 
-                 input_dim: int, 
-                 output_dim: int, 
-                 device: Union[str, int, torch.device]="cpu", 
-                 hidden_dims: Union[int, Sequence[int]] = [],
-                 ensemble_size: int=1, 
-                 share_hidden_layer: Union[Sequence[bool], bool]=False, 
-                 ):
+    Categorical Actor, which maps the given obs to a categorical distribution. Often used to solve discrete control tasks. 
+
+    Notes
+    -----
+    All actors creates an extra post-processing module which maps the output of `backend` to
+      the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
+      further customize the post-processing module. This is useful when you hope to, for example, 
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+    
+    Parameters
+    ----------
+    backend :  The preprocessing backend of the actor, which is used to extract vectorized features from the raw input. 
+    input_dim :  The dimensions of input (the output of backend module). 
+    output_dim :  The dimension of actor's output. 
+    device :  The device which the model runs on. Default is cpu. 
+    ***(any args of MLP or EnsembleMLP)
+    """
+    def __init__(
+        self, 
+        backend: nn.Module, 
+        input_dim: int, 
+        output_dim: int, 
+        device: Union[str, int, torch.device]="cpu", 
+        *, 
+        ensemble_size: int = 1, 
+        hidden_dims: Union[int, Sequence[int]]=[],
+        norm_layer: Optional[Union[ModuleType, Sequence[ModuleType]]] = None, 
+        activation: Optional[Union[ModuleType, Sequence[ModuleType]]] = nn.ReLU, 
+        dropout: Optional[Union[float, Sequence[float]]] = None, 
+        share_hidden_layer: Union[Sequence[bool], bool] = False, 
+    ) -> None:
         super().__init__()
         
         self.actor_type = "CategoricalActor"
@@ -431,6 +654,9 @@ class CategoricalActor(BaseActor):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device
             )
         elif isinstance(ensemble_size, int) and ensemble_size > 1:
@@ -438,6 +664,9 @@ class CategoricalActor(BaseActor):
                 input_dim = input_dim, 
                 output_dim = output_dim, 
                 hidden_dims = hidden_dims, 
+                norm_layer = norm_layer, 
+                activation = activation, 
+                dropout = dropout, 
                 device = device, 
                 ensemble_size = ensemble_size, 
                 share_hidden_layer = share_hidden_layer
@@ -449,14 +678,20 @@ class CategoricalActor(BaseActor):
         out = self.output_layer(self.backend(input))
         return torch.softmax(out, dim=-1)
     
-    def sample(self, input: torch.Tensor, deterministic: bool=False, return_probs: bool=False):
-        """Sampling from a categorical distribution where probs are predicted by networks. 
+    def sample(self, obs: torch.Tensor, deterministic: bool=False, return_probs: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
+        """Sampling procedure. The action is sampled from a Categorical Distribution.
 
-        :param input: state / obs of the environent.
-        :param deterministic: whether to use deterministic sampling. If `True`, `argmax` will be returned as action.
-        :param return_probs: whether to return probs of the sampling distribution. If `True`, they will be included in `info` dict.
+        Parameters
+        ----------
+        obs :  The observation, should be torch.Tensor. 
+        deterministic :  Whether to sample or return the mean action. 
+        return_probs :  Whether to return the raw probabilities of the categorical distribution. 
+        
+        Returns
+        -------
+        (torch.Tensor, torch.Tensor, Dict) :  The sampled action, logprob and info dict. 
         """
-        probs = self.forward(input)
+        probs = self.forward(obs)
         if deterministic: 
             action = torch.argmax(probs, dim=-1, keepdim=True)
             logprob = torch.log(torch.max(probs, dim=-1, keepdim=True)[0] + 1e-6)
@@ -469,15 +704,27 @@ class CategoricalActor(BaseActor):
         info = {"probs": probs} if return_probs else {}
         return action, logprob, info
     
-    def evaluate(self, state: torch.Tensor, action: torch.Tensor):
-        """Evaluate the action given the state, will return log-probability of the action and entropy of the distribution.
+    def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_probs: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
+        """Evaluate the action at given obs. 
+        
+        Parameters
+        ----------
+        obs : The observation, should be torch.Tensor. 
+        action :  The action, shoild torch.Tensor. 
+        return_probs :  Whether to return the raw probabilities of the categorical distribution. 
+        
+        Returns
+        -------
+        (torch.Tensor, Dict) :  The log-probability of action at obs and the info dict. 
 
-        :param state: state of the environent.
-        :param action: action to be evaluated.
+        :param state: state of the environment.
+        :param act
         """
+
         if len(action.shape) == 2:
             action = action.view(-1)
-        probs = self.forward(state)
+        probs = self.forward(obs)
         dist = Categorical(probs=probs)
-        return dist.log_prob(action).unsqueeze(-1), dist.entropy().unsqueeze(-1)
+        info = {"probs": probs} if return_probs else {}
+        return dist.log_prob(action).unsqueeze(-1), info
             

@@ -8,6 +8,17 @@ from UtilsRL.net.utils import conv2d_out_size
 ModuleType = Type[nn.Module]
 
 class AtariConv2d(nn.Module):
+    """
+    Conolutional encoder for Atari 2000 Games.
+    
+    Parameters
+    ----------
+    input_channel :  The number of input channels. Default is 4.
+    output_channel :  The number of output channels. Default is 64.
+    mode :  The mode to use. Default is RGB.
+    activate_last :  Whether or not to activate the last layer in the network. Default is True.
+    device :  The device to run the network on. Default is CPU.
+    """
     def __init__(
         self, 
         input_channel: int=4, 
@@ -40,6 +51,18 @@ atari_conv2d_out_size = conv2d_out_size(conv2d_out_size(conv2d_out_size(84, 8, 4
         
 
 class CNN(nn.Module):
+    """
+    Standard convolutional neural network module. 
+    
+    Parameters
+    ----------
+    input_channel :  The number of input channels. Default is 4.
+    channels : Output channels list. 
+    kernels : Kernel sizes. 
+    strides : Strides
+    activate_last : Whether to activate the output of last CNN layer or not.
+    device : The device to use, default to cpu.
+    """
     def __init__(
         self, 
         input_channel: int, 

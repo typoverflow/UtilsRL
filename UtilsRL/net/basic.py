@@ -16,8 +16,23 @@ def miniblock(
     *args, 
     **kwargs
 ) -> List[nn.Module]:
-    """Construct a miniblock with given input/output-size, norm layer and
-    activation."""
+    """
+    Construct a miniblock with given input and output. It is possible to specify norm layer, activation, and dropout for the constructed miniblock.
+    
+    Parameters
+    ----------
+    input_dim :  Number of input features..
+    output_dim :  Number of output features. Default is 0.
+    norm_layer :  Module to use for normalization. When not specified or set to True, nn.LayerNorm is used.
+    activation :  Module to use for activation. When not specified or set to True, nn.ReLU is used.
+    dropout :  Dropout rate. Default is None.
+    linear_layer :  Module to use for linear layer. Default is nn.Linear.
+    
+    Returns
+    -------
+    List of modules for miniblock.
+    """
+
     layers: List[nn.Module] = [linear_layer(input_dim, output_dim, *args, **kwargs)]
     if norm_layer is not None:
         if isinstance(norm_layer, nn.Module):
@@ -32,6 +47,18 @@ def miniblock(
 
 
 class EnsembleLinear(nn.Module):
+    """
+    An linear module for concurrent forwarding, which can be used for ensemble purpose.
+    
+    Parameters
+    ----------
+    in_features :  Number of input features. 
+    out_features :  Number of output features. 
+    ensemble_size :  Ensemble size. Default is 1.
+    bias :  Whether to add bias or not. Default is True.
+    device :  Device to use for parameters.
+    dtype :  Data type to use for parameter.
+    """
     def __init__(
         self,
         in_features, 
@@ -40,7 +67,7 @@ class EnsembleLinear(nn.Module):
         bias: bool = True, 
         device: Optional[Any] = None, 
         dtype: Optional[Any] = None
-    ):
+    ) -> None:
         factory_kwargs = {"device": device, "dtype": dtype}
         super().__init__()
         self.in_features = in_features
@@ -72,6 +99,18 @@ class EnsembleLinear(nn.Module):
 
 
 class NoisyLinear(nn.Linear):
+    """
+    An linear module which supports for noisy parameters.
+    
+    Parameters
+    ----------
+    in_features :  Number of input features.
+    out_features :  Number of output features.
+    std_init :  Standard deviation of the weight and noise initialization.
+    bias :  Whether to add bias. 
+    device :  Device to use for parameters.
+    dtype :  Data type to use for parameter.
+    """
     def __init__(
         self, 
         in_features: int, 
@@ -122,6 +161,9 @@ class NoisyLinear(nn.Linear):
             return torch.nn.functional.linear(x, self.weight, self.bias)
         
     def reset_noise(self):
+        """
+        Reset the noise to the noise matrix .
+        """
         device = self.weight.data.device
         epsilon_in = self.scaled_noise(self.in_features)
         epsilon_out = self.scaled_noise(self.out_features)

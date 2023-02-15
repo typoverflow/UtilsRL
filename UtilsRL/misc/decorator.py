@@ -4,7 +4,7 @@ import atexit
 
 def depreciated(func):
     """
-    Decorator to print depreciated message
+    Decorator to print depreciated message.
     """
     def wrapper(*args, **kwargs):
         print("Depreciated function: {}".format(func.__name__))
@@ -12,8 +12,8 @@ def depreciated(func):
     return wrapper
 
 def untested(func):
-    """_summary_
-    Decorator to hint that the function is untested
+    """
+    Decorator to hint that the function is untested.
     """
     def wrapper(*args, **kwargs):
         print("Untested function: {}".format(func.__name__))
@@ -46,6 +46,9 @@ def fallback(func):
 
     
 def profile(func):
+    """
+    Decorator to profile the function and to print elapsed time at the exit of the program
+    """
     called_times = 0
     elapsed_time = 0
     def exit_logger():
