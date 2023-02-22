@@ -1,8 +1,11 @@
-import functools
-import time
-import atexit
-import torch
 from typing import Callable, Any, Optional
+
+import os
+import time
+import torch
+import atexit
+import traceback
+import functools
 
 
 def depreciated(func):
@@ -63,7 +66,7 @@ class profile(object):
     """
     global_registry = {}
 
-    def __init__(self, name: Optional[str]=None, activate: bool=True) -> None:
+    def __init__(self, name: Optional[str] = None, activate: bool = True) -> None:
         self.name = name
         self.activate = activate
 
@@ -75,12 +78,11 @@ class profile(object):
             )
         self.exit_logger_fn = exit_logger
 
-
     def __call__(self, func: Callable) -> Callable:
         if self.activate:
             if self.name is None:
                 self.name = func.__name__
-            if not self.name in profile.global_registry:
+            if self.name not in profile.global_registry:
                 profile.global_registry[self.name] = [0, 0]
                 atexit.register(self.exit_logger_fn)
 
@@ -101,8 +103,14 @@ class profile(object):
     def __enter__(self) -> None:
         if self.activate:
             if self.name is None:
-                self.name = "default"
-            if not self.name in profile.global_registry:
+                stack = traceback.extract_stack()[0]
+                cwd = os.getcwd()
+                filename = stack.filename
+                lineno = stack.lineno
+                if filename.startswith(cwd):
+                    filename = filename.replace(cwd, ".")
+                self.name = "{}: line{}".format(filename, lineno)
+            if self.name not in profile.global_registry:
                 profile.global_registry[self.name] = [0, 0]
                 atexit.register(self.exit_logger_fn)
             torch.cuda.synchronize()
@@ -113,14 +121,3 @@ class profile(object):
             torch.cuda.synchronize()
             profile.global_registry[self.name][0] += time.time() - self.beg
             profile.global_registry[self.name][1] += 1
-        
-
-if __name__ == "__main__":
-    @profile()
-    def f(i):
-        print(i)
-        time.sleep(3)
-    
-    for i in range(3):
-        f(i)
-    
