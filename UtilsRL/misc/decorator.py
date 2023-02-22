@@ -69,19 +69,20 @@ class profile(object):
 
         def exit_logger():
             from UtilsRL.logger import logger  # the input is moved here to avoid circular import
-            torch.cuda.synchronize()
+            elapsed_time, called_time = profile.global_registry[self.name]
             logger.info(
-                f"[profile]: Executed {self.name} {self.called_times} times, total elapsed time {self.total_time}(s), avg {self.total_time/self.called_times if self.called_times else 0}(s)."
+                f"[profile]: Executed {self.name} {called_time} times, total elapsed time {elapsed_time}(s), avg {elapsed_time/called_time if called_time else 0}(s)."
             )
+        self.exit_logger_fn = exit_logger
 
-        if self.activate:
-            atexit.register(exit_logger)
 
     def __call__(self, func: Callable) -> Callable:
         if self.activate:
             if self.name is None:
                 self.name = func.__name__
-            profile.global_registry[self.name] = [0, 0]
+            if not self.name in profile.global_registry:
+                profile.global_registry[self.name] = [0, 0]
+                atexit.register(self.exit_logger_fn)
 
             @functools.wraps(func)
             def wrapper(*args, **kwargs):
@@ -101,6 +102,9 @@ class profile(object):
         if self.activate:
             if self.name is None:
                 self.name = "default"
+            if not self.name in profile.global_registry:
+                profile.global_registry[self.name] = [0, 0]
+                atexit.register(self.exit_logger_fn)
             torch.cuda.synchronize()
             self.beg = time.time()
 
@@ -110,3 +114,13 @@ class profile(object):
             profile.global_registry[self.name][0] += time.time() - self.beg
             profile.global_registry[self.name][1] += 1
         
+
+if __name__ == "__main__":
+    @profile()
+    def f(i):
+        print(i)
+        time.sleep(3)
+    
+    for i in range(3):
+        f(i)
+    
