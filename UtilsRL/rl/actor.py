@@ -58,7 +58,7 @@ class DeterministicActor(BaseActor):
     All actors creates an extra post-processing module which maps the output of `backend` to
       the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
       further customize the post-processing module. This is useful when you hope to, for example, 
-      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
@@ -151,7 +151,7 @@ class SquashedDeterministicActor(DeterministicActor):
     2. All actors creates an extra post-processing module which maps the output of `backend` to
         the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
         further customize the post-processing module. This is useful when you hope to, for example, 
-        create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+        create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
@@ -203,7 +203,7 @@ class ClippedDeterministicActor(DeterministicActor):
     2. All actors creates an extra post-processing module which maps the output of `backend` to
         the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
         further customize the post-processing module. This is useful when you hope to, for example, 
-        create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+        create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
@@ -254,7 +254,7 @@ class GaussianActor(BaseActor):
     All actors creates an extra post-processing module which maps the output of `backend` to
       the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
       further customize the post-processing module. This is useful when you hope to, for example, 
-      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
@@ -333,10 +333,10 @@ class GaussianActor(BaseActor):
             )
         else:
             raise ValueError(f"ensemble size should be int >= 1.")
-        
+
         self.register_buffer("logstd_min", torch.tensor(logstd_min))
         self.register_buffer("logstd_max", torch.tensor(logstd_max))
-        
+    
     def forward(self, input: torch.Tensor):
         out = self.output_layer(self.backend(input))
         if self._logstd_is_layer:
@@ -406,7 +406,7 @@ class SquashedGaussianActor(GaussianActor):
     2. All actors creates an extra post-processing module which maps the output of `backend` to
       the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
       further customize the post-processing module. This is useful when you hope to, for example, 
-      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
@@ -450,7 +450,7 @@ class SquashedGaussianActor(GaussianActor):
             share_hidden_layer=share_hidden_layer
         )
         self.actor_type = "SquashedGaussianActor"
-        
+    
     def sample(self, obs: torch.Tensor, deterministic: bool=False, return_mean_logstd=False, *args, **kwargs) -> Tuple[torch.Tensor, torch.Tensor, Dict]:
         """Sampling procedure. The action is sampled from a Tanh-transformed Gaussian distribution.
 
@@ -470,7 +470,7 @@ class SquashedGaussianActor(GaussianActor):
             action, logprob = dist.tanh_mean, None
         elif self.reparameterize:
             action, raw_action = dist.rsample(return_raw=True)
-            logprob = dist.log_prob(raw_action, pre_tanh_value=True).sum(-1, keepdim=True)  # we pass the raw_action to avoid too complex gradient computing
+            logprob = dist.log_prob(raw_action, pre_tanh_value=True).sum(-1, keepdim=True)
         else:
             action, raw_action = dist.sample(return_raw=True)
             logprob = dist.log_prob(raw_action, pre_tanh_value=True).sum(-1, keepdim=True)
@@ -510,7 +510,7 @@ class ClippedGaussianActor(GaussianActor):
     2. All actors creates an extra post-processing module which maps the output of `backend` to
       the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
       further customize the post-processing module. This is useful when you hope to, for example, 
-      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
@@ -575,13 +575,15 @@ class ClippedGaussianActor(GaussianActor):
             action, logprob = dist.mean, None
         elif self.reparameterize:
             action = dist.rsample()
-            logprob = dist.log_prob(action).sum(-1, keepdim=True)
+            # logprob = dist.log_prob(action).sum(-1, keepdim=True)
         else:
             action = dist.sample()
-            logprob = dist.log_prob(action).sum(-1, keepdim=True)
+            # logprob = dist.log_prob(action).sum(-1, keepdim=True)
+        action = torch.clip(action, min=-1.0, max=1.0)
+        logprob = dist.log_prob(action).sum(-1, keepdim=True)
         
         info = {"mean": mean, "logstd": logstd} if return_mean_logstd else {}
-        return torch.clip(action, min=-1.0, max=1.0), logprob, info
+        return action, logprob, info
             
     def evaluate(self, obs: torch.Tensor, action: torch.Tensor, return_dist: bool=False, *args, **kwargs) -> Tuple[torch.Tensor, Dict]:
         """Evaluate the action at given obs. 
@@ -615,7 +617,7 @@ class CategoricalActor(BaseActor):
     All actors creates an extra post-processing module which maps the output of `backend` to
       the real final output. You can pass in any arguments for `MLP` or `EnsembleMLP` to 
       further customize the post-processing module. This is useful when you hope to, for example, 
-      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing by designating `ensemble_size`.
+      create an ensemble-style actor: just designating `ensemble_size`>1 when instantiaing.
     
     Parameters
     ----------
