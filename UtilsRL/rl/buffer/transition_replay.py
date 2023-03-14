@@ -34,7 +34,7 @@ class TransitionSimpleReplay(SimpleReplay):
         unsqueeze = None
         data_len = None
         for _key, _data in key_or_dict.items():
-            if unsqueeze is None:
+            if (unsqueeze is None) and (_key in self.field_specs):
                 unsqueeze = len(_data.shape) == len(self.field_specs[_key]["shape"])
                 data_len = 1 if unsqueeze else _data.shape[0]
                 index_to_go = np.arange(self._pointer, self._pointer + data_len) % self._max_size
