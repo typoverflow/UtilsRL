@@ -69,7 +69,7 @@ class GPT2(nn.Module):
         num_layers: int, 
         seq_len: int, 
         num_heads: int, 
-        causal: bool=False, 
+        causal: bool=True, 
         attention_dropout: Optional[float]=0.1, 
         residual_dropout: Optional[float]=0.1, 
         embed_dropout: Optional[float]=0.1, 
