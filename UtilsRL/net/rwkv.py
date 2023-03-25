@@ -45,12 +45,12 @@ class WKV(torch.autograd.Function):
         y = torch.empty((B, T, C), device='cuda', memory_format=torch.contiguous_format)
         wkv_op.forward(B, T, C, w, u, k, v, y)
         if '32' in os.environ['RWKV_FLOAT_MODE']:
-            return y
+            y = y
         elif os.environ['RWKV_FLOAT_MODE'] == 'fp16':
-            return y.half()
+            y = y.half()
         elif os.environ['RWKV_FLOAT_MODE'] == 'bf16':
-            return y.bfloat16()
-        return None
+            y = y.bfloat16()
+        return y
     
     @staticmethod
     def backward(ctx: Any, grad_outputs: Any) -> Any:
@@ -147,7 +147,6 @@ class RWKVChannelMix(nn.Module):
         embed_dim
     ):
         self.embed_dim = embed_dim
-        self.time_shift = nn.ZeroPad2d((0, 0, 1, -1))
         hidden_size = 4 * self.embed_dim
         self.key = nn.Linear(self.embed_dim, hidden_size, bias=False)
         self.value = nn.Linear(hidden_size, self.embed_dim, bias=False)
@@ -173,9 +172,10 @@ class RWKVBlock(nn.Module):
     ) -> None:
         super().__init__()
         self.embed_dim = embed_dim
+        self.model_type = model_type
         if layer_id == 0:
             self.ln0 = nn.LayerNorm(self.embed_dim)
-        if layer_id == 0 and model_type == "ffnpre":
+        if layer_id == 0 and self.model_type == "ffnpre":
             self.rwkv = RWKVChannelMix(self.embed_dim)
         else:
             self.rwkv = RWKVTimeMix(self.embed_dim)
@@ -187,14 +187,16 @@ class RWKVBlock(nn.Module):
         self, 
         input: torch.Tensor
     ):
-        if self.layer_id == 0:
+        if self.layer_id == 0 and self.model_type == "ffnpre":
             residual = self.ln0(input)
         else:
             residual = input
+        input = self.ln1(residual)
         rwkv_output = self.rwkv(input)
         residual = residual + rwkv_output
         residual = residual + self.ff(self.ln2(residual))
         return residual
+
 
 class RWKV(nn.Module):
     def __init__(
@@ -202,30 +204,141 @@ class RWKV(nn.Module):
         input_dim: int,
         embed_dim: int,
         num_layers: int,
-        ctx_len: int
+        seq_len: int,
+        weight_decay: Optional[bool] = False
     ) -> None:
         super().__init__()
+        self.input_dim = input_dim
+        self.embed_dim = embed_dim
+        self.weight_decay = weight_decay
         self.input_embed = nn.Linear(input_dim, embed_dim)
-        self.ctx_len = ctx_len
+        self.seq_len = seq_len
         
-        self.blocks = nn.Module([
+        self.blocks = nn.ModuleList([
             RWKVBlock(
                 embed_dim=embed_dim,
                 layer_id=i
             ) for i in range(num_layers)
         ])
-        self.ln_out = nn.LayerNorm(embed_dim)
+        self.out_ln = nn.LayerNorm(embed_dim)
+    
+    def init_params(self):
+        for mn, m in self.named_modules():
+            if not isinstance(m, (nn.Linear, nn.Embedding)):
+                continue
+            for pn, p in m.named_parameters():
+                if id(m.weight) == id(p):
+                    break
+            p_shape = m.weight.data.shape
+            gain = 1.0
+            scale = 1.0
+            if isinstance(m, nn.Embedding):
+                gain = math.sqrt(max(p_shape[0], p_shape[1]))
+                if (p_shape[0] == self.input_dim) and (p_shape[1] == self.embed_dim):
+                    scale = 1e-4
+                else:
+                    scale = 0
+            if isinstance(m, nn.Linear):
+                if m.bias is not None:
+                    m.bias.data.zero_()
+                if p_shape[0] > p_shape[1]:
+                    gain = math.sqrt(p_shape[0] / p_shape[1])
+                if (p_shape[0] == self.input_dim) and (p_shape[1] == self.embed_dim):
+                    scale = 0.5
+
+            if hasattr(m, "scale_init"):
+                scale = m.scale_init
+
+            gain *= scale
+            if gain == 0:
+                nn.init.zeros_(m.weight)
+            elif gain > 0:
+                nn.init.orthogonal_(m.weight, gain=gain)
+            else:
+                nn.init.normal_(m.weight, mean=0.0, std=-scale)
+    
+    def configure_params(self):
+        decay = set()
+        no_decay = set()
+        whitelist_weight_modules = (torch.nn.Linear, torch.nn.MultiheadAttention)
+        blacklist_weight_modules = (torch.nn.LayerNorm, torch.nn.Embedding)
+        for mn, m in self.named_modules():
+            for pn, p in m.named_parameters():
+                fpn = '%s.%s' % (mn, pn) if mn else pn # full param name
+                if self.weight_decay:
+                    if pn.endswith('bias'):
+                        no_decay.add(fpn)
+                    elif pn.endswith('weight') and isinstance(m, whitelist_weight_modules):
+                        decay.add(fpn)
+                    elif pn.endswith('weight') and isinstance(m, blacklist_weight_modules):
+                        no_decay.add(fpn)
+                else:
+                    no_decay.add(fpn)
+
+        # validate that we considered every parameter
+        param_dict = {pn: p for pn, p in self.named_parameters()}
+        inter_params = decay & no_decay
+        union_params = decay | no_decay
+        assert len(inter_params) == 0, "parameters %s made it into both decay/no_decay sets!" % (str(inter_params), )
+        assert len(param_dict.keys() - union_params) == 0, "parameters %s were not separated into either decay/no_decay set!" \
+                                                    % (str(param_dict.keys() - union_params), )
+
+        return [param_dict[pn] for pn in sorted(list(decay))], [param_dict[pn] for pn in sorted(list(no_decay))]
+
+    def forward(
+        self,
+        inputs: torch.Tensor,
+        do_embedding: bool=True
+    ) -> torch.Tensor:
+        B, T, *_ = inputs.size()
+        assert T <= self.seq_len, "len(input) too long"
+        if do_embedding:
+            x = self.emeb(inputs)
+        for _, block in enumerate(self.blocks):
+            x = block(x)
+        x = self.out_ln(x)
+        return x
+
+
+class DecisionRWKV(RWKV):
+    def __init__(
+        self,
+        obs_dim: int,
+        action_dim: int,
+        embed_dim: int,
+        num_layers: int,
+        seq_len: int,
+        weight_decay: Optional[bool] = False
+    ) -> None:
+        super().__init__(
+            input_dim=embed_dim,
+            embed_dim=embed_dim,
+            num_layers=num_layers,
+            seq_len=seq_len,
+            weight_decay=weight_decay
+        )
+
+        self.obs_embed = nn.Lineare(obs_dim, embed_dim)
+        self.act_embed = nn.Linear(action_dim, embed_dim)
+        self.ret_embed = nn.Linear(1, embed_dim)
+
+        self.action_head = nn.Sequential(nn.Linear(embed_dim, action_dim), nn.Tanh())
+
+    def forward(
+        self,
+        states: torch.Tensor,
+        actions: torch.Tensor,
+        returns_to_go: torch.Tensor
+    ):
+        B, T, *_ = states.shape
+        state_embedding = self.obs_embed(states)
+        action_embedding = self.act_embed(actions)
+        return_embedding = self.ret_embed(returns_to_go)
         
-        self.head = nn.Linear(embed_dim, input_dim)
-    
-    @property
-    def ctx_len(self):
-        return self.ctx_len
-    
-    def forward(self, inputs):
-        B, T = inputs.size()
-        assert T <= self.ctx_len, "len(input) too long"
-        x = self.emb(inputs)
-        x = self.blocks(x)
-        x = self.ln_out(x)
-        return self.head(x)
+        stacked_input = torch.stack([return_embedding, state_embedding, action_embedding], dim=2).reshape(B, 3*T, state_embedding.shape[-1])
+        out = super().forward(
+            inputs=stacked_input, 
+            do_embedding=False
+        )
+        out = self.action_head(out[:, 1::3])
+        return out
