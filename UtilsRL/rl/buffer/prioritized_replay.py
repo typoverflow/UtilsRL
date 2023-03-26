@@ -93,7 +93,7 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
         if metric_value.shape == ():
             metric_value = np.asarray([metric_value, ])
         # update crendential
-        self.max_metric_value = max(metric_value, self.max_metric_value)
+        self.max_metric_value = max(np.max(metric_value), self.max_metric_value)
         self.sum_tree.update(batch_idx, self.metric_fn(metric_value))
         self.min_tree.update(batch_idx, self.metric_fn(metric_value))
 
