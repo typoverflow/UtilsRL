@@ -69,7 +69,7 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
             else:
                 batch_idx = []
                 if self.metric == "proportional":
-                    min_p = self.min_tree.min()
+                    min_p = self.min_tree.min() + 1e-6
                     segment = 1 / batch_size
                     batch_target = (np.random.random(size=[batch_size, ]) + np.arange(0, batch_size))*segment
                     batch_idx, batch_p = self.sum_tree.find(batch_target)
@@ -87,10 +87,10 @@ class PrioritizedSimpleReplay(TransitionSimpleReplay):
     
     def batch_update(self, batch_idx, metric_value):
         batch_idx = np.asarray(batch_idx)
-        if batch_idx.shape == ():
+        if len(batch_idx.shape) == 0:
             batch_idx = np.asarray([batch_idx, ])
         metric_value = np.asarray(metric_value)
-        if metric_value.shape == ():
+        if len(metric_value.shape) == 0:
             metric_value = np.asarray([metric_value, ])
         # update crendential
         self.max_metric_value = max(np.max(metric_value), self.max_metric_value)
@@ -105,7 +105,6 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
                  metric: str="proportional", 
                  alpha: float=0.2, 
                  cache_max_size: Optional[int]=None, 
-                #  metric_key: str="metric_value", 
                  *args, **kwargs):
         field_specs = field_specs or {}
         super().__init__(max_size, field_specs, cache_max_size, *args, **kwargs)
@@ -154,14 +153,15 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
             else:
                 batch_idx = []
                 if self.metric == "proportional":
-                    sum_tree_total = self.sum_tree.total()
-                    min_prob = self.min_tree.min() / sum_tree_total
+                    min_p = self.min_tree.min() + 1e-6
                     segment = 1 / batch_size
                     batch_target = (np.random.random(size=[batch_size, ]) + np.arange(0, batch_size))*segment
                     batch_idx, batch_p = self.sum_tree.find(batch_target)
                     batch_idx = np.asarray(batch_idx)
-                    batch_prob = np.asarray(batch_p) / sum_tree_total
-                    batch_is = np.power((len(self)*batch_prob), (-beta)) / np.power((len(self)*min_prob), (-beta))
+                    batch_p = np.asarray(batch_p)
+                    # Simplified form for IS weight, ref: https://github.com/nuance1979/tianshou/blob/104d47655299c2d386caf73ecb011a688b3384df/tianshou/data/buffer/prio.py#L73
+                    batch_is = (batch_p / min_p) ** (-beta)
+                    batch_is = batch_is / batch_is.max()
             if fields is None:
                 fields = self.field_specs.keys()
             batch_data = {
@@ -171,10 +171,10 @@ class PrioritizedFlexReplay(TransitionFlexReplay):
     
     def batch_update(self, batch_idx, metric_value):
         batch_idx = np.asarray(batch_idx)
-        if batch_idx.shape == ():
+        if len(batch_idx.shape) == 0:
             batch_idx = np.asarray([batch_idx, ])
         metric_value = np.asarray(metric_value)
-        if metric_value.shape == ():
+        if len(metric_value.shape) == 0:
             metric_value = np.asarray([metric_value, ])
         # update crendential
         self.max_metric_value = max(np.max(metric_value), self.max_metric_value)
