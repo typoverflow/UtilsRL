@@ -71,4 +71,5 @@ class DecisionTransformer(GPT2):
         out = self.action_head(out[:, 1::3])
         return out    # (batch size, length, action_shape)
 
-        
+    def configure_params(self):
+        return super().configure_params()

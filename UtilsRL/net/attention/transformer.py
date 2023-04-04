@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 import torch
 import torch.nn as nn
 
+from UtilsRL.net.attention.base import BaseTransformer
 from UtilsRL.net.attention.positional_encoding import PositionalEmbedding, SinusoidEncoding, ZeroEncoding
 
 
@@ -129,7 +130,7 @@ class TransformerDecoderBlock(nn.Module):
         return x
 
 
-class TransformerEncoder(nn.Module):
+class TransformerEncoder(BaseTransformer):
     def __init__(
         self, 
         input_dim: int, 
@@ -190,7 +191,7 @@ class TransformerEncoder(nn.Module):
         return inputs
     
 
-class TransformerDecoder(nn.Module):
+class TransformerDecoder(BaseTransformer):
     def __init__(
         self, 
         input_dim: int, 
@@ -257,7 +258,7 @@ class TransformerDecoder(nn.Module):
         return output
         
 
-class Transformer(nn.Module):
+class Transformer(BaseTransformer):
     def __init__(
         self, 
         enc_input_dim: int, 

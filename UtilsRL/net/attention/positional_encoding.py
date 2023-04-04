@@ -1,8 +1,10 @@
 import torch
 from torch import nn
 
+from UtilsRL.net.attention.base import PositionalEncoding
 
-class SinusoidEncoding(nn.Module):
+
+class SinusoidEncoding(PositionalEncoding):
     """
     Sinusoid encoding.
     """
@@ -29,7 +31,7 @@ class SinusoidEncoding(nn.Module):
         return torch.gather(self.encoding, 0, x).detach()
 
 
-class PositionalEmbedding(nn.Embedding):
+class PositionalEmbedding(PositionalEncoding):
     """
     Direct embedding.
     """
@@ -37,7 +39,7 @@ class PositionalEmbedding(nn.Embedding):
         super().__init__(num_embeddings=pos_len, embedding_dim=embed_dim)
 
 
-class ZeroEncoding(nn.Module):
+class ZeroEncoding(PositionalEncoding):
     """
     Zero encoding, i.e. no timestep encoding.
     """

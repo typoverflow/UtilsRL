@@ -3,6 +3,7 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 import torch
 import torch.nn as nn
 
+from UtilsRL.net.attention.base import BaseTransformer
 from UtilsRL.net.attention.positional_encoding import PositionalEmbedding, SinusoidEncoding, ZeroEncoding
 
 
@@ -58,7 +59,7 @@ class GPTBlock(nn.Module):
         return residual
         
         
-class GPT2(nn.Module):
+class GPT2(BaseTransformer):
     def __init__(
         self, 
         input_dim: int, 
