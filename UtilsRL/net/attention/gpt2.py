@@ -3,19 +3,19 @@ from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 import torch
 import torch.nn as nn
 
+from UtilsRL.net.attention.positional_encoding import PositionalEmbedding, SinusoidEncoding, ZeroEncoding
+
 
 class GPTBlock(nn.Module):
     def __init__(
         self, 
         embed_dim: int, 
-        seq_len: int, 
         num_heads: int, 
         attention_dropout: Optional[float]=None, 
         residual_dropout: Optional[float]=None, 
         backbone_dim: Optional[int]=None, 
     ) -> None:
         super().__init__()
-        self.seq_len = seq_len
         if backbone_dim is None:
             backbone_dim = 4 * embed_dim
         self.attention = nn.MultiheadAttention(
@@ -40,10 +40,7 @@ class GPTBlock(nn.Module):
         attention_mask: Optional[torch.Tensor]=None, 
         key_padding_mask: Optional[torch.Tensor]=None
     ):
-        B, L, *shape = input.shape
-        if attention_mask is None:
-            attention_mask = self.mask[:L, :L]
-        else:
+        if attention_mask is not None:
             attention_mask = attention_mask.to(torch.bool)
             
         residual = input
@@ -73,12 +70,18 @@ class GPT2(nn.Module):
         attention_dropout: Optional[float]=0.1, 
         residual_dropout: Optional[float]=0.1, 
         embed_dropout: Optional[float]=0.1, 
-        position_dim: Optional[int]=None
+        pos_encoding: str="sinusoid", 
+        pos_len: Optional[int]=None
     ) -> None:
         super().__init__()
         self.input_embed = nn.Linear(input_dim, embed_dim)
-        position_dim = position_dim or seq_len
-        self.pos_embed = nn.Embedding(position_dim, embed_dim)
+        pos_len = pos_len or seq_len
+        if pos_encoding == "sinusoid":
+            self.pos_embed = SinusoidEncoding(embed_dim, pos_len)
+        elif pos_encoding == "embedding":
+            self.pos_embed = PositionalEmbedding(embed_dim, pos_len)
+        elif pos_encoding == "none":
+            self.pos_embed = ZeroEncoding(embed_dim, pos_len)
         self.embed_dropout = nn.Dropout(embed_dropout) if embed_dropout else nn.Identity()
         self.out_ln = nn.LayerNorm(embed_dim)
         self.blocks = nn.ModuleList([
@@ -114,9 +117,10 @@ class GPT2(nn.Module):
         if do_embedding:
             # do tokenize inside ?
             inputs = self.input_embed(inputs)
-            if timesteps is not None:
-                inputs = inputs + self.pos_embed(timesteps)
-        inputs = self.embed_dropout(inputs)  # check: we escape the layer norm, while only corl does ln
+            if timesteps is None:
+                timesteps = torch.arange(L).repeat(B, 1).to(inputs.device)
+            inputs = inputs + self.pos_embed(timesteps)
+        inputs = self.embed_dropout(inputs)
         for i, block in enumerate(self.blocks):
             inputs = block(inputs, attention_mask=mask, key_padding_mask=key_padding_mask)
         inputs = self.out_ln(inputs)
