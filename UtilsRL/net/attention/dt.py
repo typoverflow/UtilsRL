@@ -23,12 +23,13 @@ class DecisionTransformer(GPT2):
             input_dim=embed_dim, # actually not used
             embed_dim=embed_dim, 
             num_layers=num_layers, 
-            seq_len=3*seq_len, # (return_to_go, state, action)
             num_heads=num_heads, 
             causal=True, 
             attention_dropout=attention_dropout, 
             residual_dropout=residual_dropout, 
             embed_dropout=embed_dropout, 
+            pos_encoding="none", 
+            pos_len=0
         )
         # we manually do the embeddings here
         self.pos_embed = nn.Embedding(episode_len + seq_len, embed_dim)

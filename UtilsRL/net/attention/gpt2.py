@@ -64,7 +64,6 @@ class GPT2(nn.Module):
         input_dim: int, 
         embed_dim: int, 
         num_layers: int, 
-        seq_len: int, 
         num_heads: int, 
         causal: bool=True, 
         attention_dropout: Optional[float]=0.1, 
@@ -75,7 +74,7 @@ class GPT2(nn.Module):
     ) -> None:
         super().__init__()
         self.input_embed = nn.Linear(input_dim, embed_dim)
-        pos_len = pos_len or seq_len
+        pos_len = pos_len or 4096
         if pos_encoding == "sinusoid":
             self.pos_embed = SinusoidEncoding(embed_dim, pos_len)
         elif pos_encoding == "embedding":
@@ -87,7 +86,6 @@ class GPT2(nn.Module):
         self.blocks = nn.ModuleList([
             GPTBlock(
                 embed_dim=embed_dim, 
-                seq_len=seq_len, 
                 num_heads=num_heads, 
                 attention_dropout=attention_dropout, 
                 residual_dropout=residual_dropout
@@ -95,10 +93,6 @@ class GPT2(nn.Module):
         ])
         
         self.causal = causal
-        if causal:
-            self.register_buffer("causal_mask", ~torch.tril(torch.ones([seq_len, seq_len])).to(torch.bool))
-        else:
-            self.register_buffer("causal_mask", torch.zeros([seq_len, seq_len]).to(torch.bool))
         
     def forward(
         self, 
@@ -109,8 +103,10 @@ class GPT2(nn.Module):
         do_embedding: bool=True
     ):
         B, L, *_ = inputs.shape
-        mask = self.causal_mask[:L, :L]
-        # deal with the masks
+        if self.causal:
+            mask = ~torch.tril(torch.ones([L, L])).to(torch.bool).to(inputs.device)
+        else:
+            mask = torch.zeros([L, L]).to(torch.bool).to(inputs.device)
         if attention_mask is not None:
             mask = torch.bitwise_or(attention_mask.to(torch.bool), mask)
         
