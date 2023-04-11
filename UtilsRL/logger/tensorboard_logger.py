@@ -4,7 +4,7 @@ import numpy as np
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import Dict as DictLike
-from typing import Optional, Sequence, Union, Any
+from typing import Optional, Sequence, Union, Any, List
 
 from UtilsRL.logger.base_logger import LogLevel, BaseLogger, make_unique_name, save_fn, load_fn
 
@@ -154,6 +154,20 @@ class TensorboardLogger(BaseLogger):
         :param dataformat: specify different permutation of the video tensor.
         """
         self.tb_writer.add_video(tag, vid_tensor, step, fps)
+
+    def log_histogram(
+        self, 
+        tag: str, 
+        values: Union[np.ndarray, List], 
+        step: Optional[int]=None, 
+    ):
+        """Add histogram to tensorboard. 
+        
+        :param tag: the identifier of the histogram.
+        :param values: the values, should be list or np.ndarray. 
+        :param global_step: global step.
+        """
+        self.tb_writer.add_histogram(tag, np.asarray(values), step)
 
     def log_object(
         self,
