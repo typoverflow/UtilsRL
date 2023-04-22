@@ -27,7 +27,7 @@ wkv_op = load(
 
 class WKV(torch.autograd.Function):
     @staticmethod
-    def forward(ctx, B, T, C, w, u, k, v, h1, h2, h3):
+    def forward(ctx, B, T, C, w, u, k, v, h1, h2):
         ctx.B = B
         ctx.T = T
         ctx.C = C
@@ -40,32 +40,33 @@ class WKV(torch.autograd.Function):
         v = v.contiguous()
         h1 = h1.contiguous()
         h2 = h2.contiguous()
-        h3 = h3.contiguous()
         y = torch.empty((B, T, C), device=device, memory_format=torch.contiguous_format)
         oh1 = torch.empty((B, C), device=device, memory_format=torch.contiguous_format)
-        oh2 = torch.empty((B, C), device=device, memory_format=torch.contiguous_format)
-        oh3 = torch.empty((B, C), device=device, memory_format=torch.contiguous_format)
-        wkv_op.forward(B, T, C, w, u, k, v, h1, h2, h3, y, oh1, oh2, oh3)
-        ctx.save_for_backward(w, u, k, v, h1, h2, h3, y)
-        return y, oh1, oh2, oh3
+        oh2 = torch.empty((B, C*2), device=device, memory_format=torch.contiguous_format)
+        wkv_op.forward(B, T, C, w, u, k, v, h1, h2, y, oh1, oh2)
+        ctx.save_for_backward(w, u, k, v, h1, h2, y)
+        return y, oh1, oh2
 
     @staticmethod
-    def backward(ctx: Any, gy, oh1, oh2, oh3) -> Any:
+    def backward(ctx: Any, gy, goh1, goh2) -> Any:
         B = ctx.B
         T = ctx.T
         C = ctx.C
         assert T <= T_MAX
         assert B * C % min(C, 1024) == 0
-        w, u, k, v, h1, h2, h3, y = ctx.saved_tensors
+        w, u, k, v, h1, h2, y = ctx.saved_tensors
         device = w.device
+        # print(goh1, goh2)
         gw = torch.zeros((B, C), device=device).contiguous()
         gu = torch.zeros((B, C), device=device).contiguous()
         gk = torch.zeros((B, T, C), device=device).contiguous()
         gv = torch.zeros((B, T, C), device=device).contiguous()
-        wkv_op.backward(B, T, C, w, u, k, v, h1, h2, h3, y, gy.contiguous(), gw, gu, gk, gv)
+        gh1 = torch.zeros((B, C), device=device).contiguous()
+        gh2 = torch.zeros((B, C*2), device=device).contiguous()
+        wkv_op.backward(B, T, C, w, u, k, v, h1, h2, y, gy.contiguous(), goh1.contiguous(), goh2.contiguous(), gw, gu, gk, gv, gh1, gh2)
         gw = torch.sum(gw, dim=0)
         gu = torch.sum(gu, dim=0)
-        return (None, None, None, gw, gu, gk, gv, None, None, None)
+        return (None, None, None, gw, gu, gk, gv, gh1, gh2)
         
 
 def RUN_CUDA(B, T, C, w, u, k, v, h1, h2, h3):
@@ -114,15 +115,14 @@ class RWKVTimeMix(nn.Module):
         if hidden is None:
             hidden = torch.zeros([B, C]).to(input.device)
         if cell_state is None:
-            h2 = torch.zeros([B, C]).to(input.device)
-            h3 = torch.full([B, C], fill_value=-1e38).to(input.device)
-        else:
-            h2, h3 = torch.split(cell_state, 2, -1)
+            cell_state = torch.stack([
+                torch.zeros([B, C]), 
+                torch.full([B, C], fill_value=-1e38)
+            ], dim=-1).reshape([B, 2*C]).to(input.device)
         
-        wkv, h1, h2, h3 = RUN_CUDA(B, T, C, self.time_decay, self.time_first, k, v, hidden, h2, h3)
+        wkv, h, c = RUN_CUDA(B, T, C, self.time_decay, self.time_first, k, v, hidden, cell_state)
         rwkv = torch.sigmoid(r) * wkv
-        c = torch.concat([h2, h3], dim=-1)
-        return self.output(rwkv), h1, c
+        return self.output(rwkv), h, c
     
 
 class RWKVBlock(nn.Module):

@@ -3,16 +3,18 @@
 void cuda_forward(
     int B, int T, int C, 
     float *w, float *u, float *k, float *v, 
-    float *h1, float *h2, float *h3, float *y, 
-    float *oh1, float *oh2, float *oh3
-);
+    float *h1, float *h2, float *y, 
+    float *oh1, float *oh2
+); 
 
 void cuda_backward(
     int B, int T, int C, 
-    float *w, float *u, float *k, float *v, 
-    float *h1, float *h2, float *h3, float *y, 
-    float *gy, float *gw, float *gu, float *gk, float *gv
-);
+    float *w, float *u, float *k, float *v,
+    float *h1, float *h2, float *y, 
+    float *gy, float *goh1, float *goh2, 
+    float *gw, float *gu, float *gk, float *gv, 
+    float *gh1, float *gh2
+); 
 
 void forward(
     int64_t B, int64_t T, int64_t C, 
@@ -22,11 +24,9 @@ void forward(
     torch::Tensor &v, 
     torch::Tensor &h1, 
     torch::Tensor &h2, 
-    torch::Tensor &h3, 
     torch::Tensor &y, 
     torch::Tensor &oh1, 
-    torch::Tensor &oh2, 
-    torch::Tensor &oh3
+    torch::Tensor &oh2
 ) {
     cuda_forward(
         B, T, C, 
@@ -36,11 +36,9 @@ void forward(
         v.data_ptr<float>(), 
         h1.data_ptr<float>(), 
         h2.data_ptr<float>(),
-        h3.data_ptr<float>(), 
         y.data_ptr<float>(), 
         oh1.data_ptr<float>(), 
-        oh2.data_ptr<float>(), 
-        oh3.data_ptr<float>()
+        oh2.data_ptr<float>()
     );
 }
 
@@ -52,13 +50,16 @@ void backward(
     torch::Tensor &v, 
     torch::Tensor &h1, 
     torch::Tensor &h2, 
-    torch::Tensor &h3, 
     torch::Tensor &y, 
     torch::Tensor &gy, 
+    torch::Tensor &goh1, 
+    torch::Tensor &goh2, 
     torch::Tensor &gw, 
     torch::Tensor &gu, 
     torch::Tensor &gk, 
-    torch::Tensor &gv
+    torch::Tensor &gv, 
+    torch::Tensor &gh1, 
+    torch::Tensor &gh2
 ) {
     cuda_backward(
         B, T, C, 
@@ -68,13 +69,17 @@ void backward(
         v.data_ptr<float>(), 
         h1.data_ptr<float>(), 
         h2.data_ptr<float>(),
-        h3.data_ptr<float>(), 
         y.data_ptr<float>(), 
         gy.data_ptr<float>(), 
+        goh1.data_ptr<float>(), 
+        goh2.data_ptr<float>(), 
         gw.data_ptr<float>(), 
         gu.data_ptr<float>(), 
         gk.data_ptr<float>(), 
-        gv.data_ptr<float>());
+        gv.data_ptr<float>(), 
+        gh1.data_ptr<float>(), 
+        gh2.data_ptr<float>()
+    );
 }
 
 PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {

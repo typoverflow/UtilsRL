@@ -16,8 +16,8 @@ __global__ void kernel_forward(
     const F *__restrict__ const _h2,
     F *__restrict__ const _y, 
     F *__restrict__ const _oh1, 
-    F *__restrict__ const _oh2, 
-){
+    F *__restrict__ const _oh2
+) {
     const int idx = blockIdx.x * blockDim.x + threadIdx.x;
     const int _b = idx / C;
     const int _c = idx % C;
@@ -58,7 +58,7 @@ __global__ void kernel_forward(
 
     _oh1[_hist_offset] = aa; 
     _oh2[_hist_offset*2] = bb; 
-    _oh3[_hist_offset*2+1] = pp; 
+    _oh2[_hist_offset*2+1] = pp; 
 }
 
 void cuda_forward(
@@ -145,12 +145,13 @@ __global__ void kernel_backward(
     }
 
     F gaa = 0, gbb = 0, gpp = MIN_VALUE; 
-    if (_goh1 != NULL && _goh2 != NULL) {
+    // if (_goh1 != NULL && _goh2 != NULL) {
         gaa = _goh1[_hist_offset]; 
         gbb = _goh2[_hist_offset*2]; 
         gpp = _goh2[_hist_offset*2+1];
         if (gaa == 0 && gbb == 0) gpp = MIN_VALUE;
-    }
+        // actually torch will always feed _goh1 and goh2 with 0 at first back-propagation, so we set gpp = MIN_VALUE for consistency
+    // }
 
     // below is back-propagating gradients through time
     gw += (gaa * ga + gbb * gb);
