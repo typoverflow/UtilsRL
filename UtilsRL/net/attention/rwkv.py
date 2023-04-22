@@ -4,12 +4,15 @@ import torch.nn as nn
 from torch.utils.cpp_extension import load
 from torch.nn import functional as F
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
+import os
+
+dirpath = os.path.dirname(os.path.abspath(__file__))
 
 T_MAX = 1024
 
 wkv_op = load(
     name="wkv_extend",
-    sources=["UtilsRL/operator/wkv_op_extend.cpp", "UtilsRL/operator/wkv_op_extend.cu"],
+    sources=[f"{dirpath}/../../operator/wkv_op_extend.cpp", f"{dirpath}/../../operator/wkv_op_extend.cu"],
     verbose=True,
     extra_cuda_cflags=[
         '-res-usage',
@@ -19,7 +22,7 @@ wkv_op = load(
         '-Xptxas -O3',
         f'-DTmax={T_MAX}'
     ],
-    build_directory="build"
+    build_directory=f"{dirpath}/../../../build"
 )
 
 class WKV(torch.autograd.Function):
@@ -214,7 +217,7 @@ class DecisionRWKV(RWKV):
         )
         # RWKV only encode relative timestep but not absolute timestep, so here we still need to  embed
         # the absolute timestep info
-        self.pos_embed = nn.Linear(1, embed_dim)
+        self.pos_embed = nn.Embedding(episode_len + seq_len, embed_dim)
         self.obs_embed = nn.Linear(obs_dim, embed_dim)
         self.act_embed = nn.Linear(action_dim, embed_dim)
         self.ret_embed = nn.Linear(1, embed_dim)
@@ -234,14 +237,14 @@ class DecisionRWKV(RWKV):
         state_embedding = self.obs_embed(states) + time_embedding
         action_embedding = self.act_embed(actions) + time_embedding
         return_embedding = self.ret_embed(returns_to_go) + time_embedding
-        stacked_input = torch.stack([return_embedding, state_embedding, action_embedding], dim=2).reshape(B, 3*L, state_embedding.shape(-1))
-        out = super().forward(
+        stacked_input = torch.stack([action_embedding, return_embedding, state_embedding], dim=2).reshape(B, 3*L, state_embedding.shape(-1))
+        out, h, c = super().forward(
             stacked_input, 
             hiddens, 
             cell_states, 
             do_embedding=False
         )
         out = self.action_head(out[:, 1::3])
-        return out
+        return out, h, c
         
         
