@@ -69,8 +69,8 @@ class WKV(torch.autograd.Function):
         return (None, None, None, gw, gu, gk, gv, gh1, gh2)
         
 
-def RUN_CUDA(B, T, C, w, u, k, v, h1, h2, h3):
-    return WKV.apply(B, T, C, w, u, k, v, h1, h2, h3)
+def RUN_CUDA(B, T, C, w, u, k, v, h1, h2):
+    return WKV.apply(B, T, C, w, u, k, v, h1, h2)
 
 
 class RWKVChannelMix(nn.Module):
@@ -83,8 +83,8 @@ class RWKVChannelMix(nn.Module):
         if backbone_dim is None:
             backbone_dim = 4 * embed_dim
         self.key = nn.Linear(embed_dim, backbone_dim, bias=False)
-        self.value = nn.Linear(embed_dim, backbone_dim, bias=False)
-        self.receptance = nn.Linear(embed_dim, backbone_dim, bias=False)
+        self.value = nn.Linear(backbone_dim, embed_dim, bias=False)
+        self.receptance = nn.Linear(embed_dim, embed_dim, bias=False)
 
     def forward(self, input: torch.Tensor):
         k = torch.square(torch.relu(self.key(input)))
@@ -111,7 +111,7 @@ class RWKVTimeMix(nn.Module):
         cell_state: Optional[torch.Tensor]=None, 
     ):
         B, T, C = input.shape
-        r, v, k = torch.split(self.rvk(input), 3)
+        r, v, k = torch.split(self.rvk(input), C, dim=-1)
         if hidden is None:
             hidden = torch.zeros([B, C]).to(input.device)
         if cell_state is None:
@@ -159,9 +159,8 @@ class RWKV(nn.Module):
     ) -> None:
         super().__init__()
         self.input_embed = nn.Linear(input_dim, embed_dim)
-        pos_len = pos_len or 4096
         
-        self.blocks = nn.ModuleList([ RWKVBlock(embed_dim) ] for _ in range(num_layers))
+        self.blocks = nn.ModuleList([ RWKVBlock(embed_dim) for _ in range(num_layers) ])
         self.ln_in = nn.LayerNorm(embed_dim)
         self.ln_out = nn.LayerNorm(embed_dim)
         
@@ -181,8 +180,8 @@ class RWKV(nn.Module):
             inputs = self.input_embed(inputs)
         inputs = self.ln_in(inputs)
         if rwkv_hiddens is not None and rwkv_cell_states is not None:
-            rwkv_hiddens = torch.split(rwkv_hiddens, len(self.blocks))
-            rwkv_cell_states = torch.split(rwkv_hiddens, len(self.blocks))
+            rwkv_hiddens = torch.unbind(rwkv_hiddens, dim=1)
+            rwkv_cell_states = torch.unbind(rwkv_cell_states, dim=1)
         else:
             rwkv_hiddens = [None] * len(self.blocks)
             rwkv_cell_states = [None] * len(self.blocks)
@@ -194,8 +193,8 @@ class RWKV(nn.Module):
             new_cell_states.append(c)
         
         inputs = self.output(self.ln_out(inputs))
-        new_hiddens = torch.concat(new_hiddens, dim=0)
-        new_cell_states = torch.concat(new_cell_states, dim=0)
+        new_hiddens = torch.stack(new_hiddens, dim=1)
+        new_cell_states = torch.stack(new_cell_states, dim=1)
         return inputs, new_hiddens, new_cell_states
         
         
@@ -237,14 +236,14 @@ class DecisionRWKV(RWKV):
         state_embedding = self.obs_embed(states) + time_embedding
         action_embedding = self.act_embed(actions) + time_embedding
         return_embedding = self.ret_embed(returns_to_go) + time_embedding
-        stacked_input = torch.stack([action_embedding, return_embedding, state_embedding], dim=2).reshape(B, 3*L, state_embedding.shape(-1))
+        stacked_input = torch.stack([action_embedding, return_embedding, state_embedding], dim=2).reshape(B, 3*L, state_embedding.shape[-1])
         out, h, c = super().forward(
             stacked_input, 
             hiddens, 
             cell_states, 
             do_embedding=False
         )
-        out = self.action_head(out[:, 1::3])
+        out = self.action_head(out[:, 2::3])
         return out, h, c
         
         
