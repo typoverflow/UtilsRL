@@ -6,6 +6,8 @@ from torch.nn import functional as F
 from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 import os
 
+from UtilsRL.net.attention.base import BaseTransformer, NoDecayParameter
+
 dirpath = os.path.dirname(os.path.abspath(__file__))
 
 T_MAX = 1024
@@ -101,8 +103,8 @@ class RWKVTimeMix(nn.Module):
         super().__init__()
         self.rvk = nn.Linear(embed_dim, embed_dim*3, bias=False)
         self.output = nn.Linear(embed_dim, embed_dim, bias=False)
-        self.time_decay = nn.Parameter(torch.ones([embed_dim, ]))
-        self.time_first = nn.Parameter(torch.ones([embed_dim, ]))
+        self.time_decay = NoDecayParameter(torch.ones([embed_dim, ]))
+        self.time_first = NoDecayParameter(torch.ones([embed_dim, ]))
         
     def forward(
         self, 
@@ -149,7 +151,7 @@ class RWKVBlock(nn.Module):
         return residual, h, c
     
     
-class RWKV(nn.Module):
+class RWKV(BaseTransformer):
     def __init__(
         self, 
         input_dim: int, 
