@@ -1,5 +1,5 @@
 
-__version__ = "0.5.7"
+__version__ = "0.5.8"
 
 from UtilsRL import data_structure, env, exp, logger, math, misc, plot, rl, monitor
 __all__ = [
