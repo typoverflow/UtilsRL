@@ -10,4 +10,3 @@ from .atari_wrapper import (
     wrap_deepmind
 )
 from .mujoco_wrapper import MujocoParamOverWrite
-from .dmc_wrapper import DMCWrapper
