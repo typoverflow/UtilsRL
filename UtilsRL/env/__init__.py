@@ -17,7 +17,7 @@ def make_dmc(
         time_limit=None,
         channels_first=True
 ):
-    env_id = '%s-%s-v1' % (domain_name, task_name, seed)
+    env_id = '%s-%s-v1' % (domain_name, task_name)
 
     if from_pixels:
         assert not visualize_reward, 'cannot use visualize reward when learning from pixels'
