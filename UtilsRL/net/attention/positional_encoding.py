@@ -57,6 +57,3 @@ class ZeroEncoding(PositionalEncoding):
         B, L = x.shape
         return torch.zeros([B, L, self.embed_dim]).to(x.device).detach()
     
-    
-class
-    
