@@ -5,8 +5,7 @@ import pickle
 from datetime import datetime
 
 import numpy as np
-import torch
-
+from UtilsRL.misc.namespace import NameSpaceMeta
 
 def make_unique_name(name):
     name = name or ""
@@ -27,14 +26,18 @@ def save_fn(protocol: str="torch"):
         with open(file, "w") as fp:
             np.save(fp, obj)
             
-    return {
-        "torch": torch.save, 
-        "pickle": pickle_save,
-        "numpy": numpy_save 
-    }.get(protocol)
+    if protocol == "torch":
+        import torch
+        return torch.save
+    else:
+        return {
+            "pickle": pickle_save,
+            "numpy": numpy_save 
+        }.get(protocol)
     
 def load_fn(protocol: str="torch"):
     def torch_load(file):
+        import torch
         return torch.load(file, map_location="cpu")
     
     def pickle_load(file):
@@ -183,6 +186,17 @@ class BaseLogger():
             ))
             if self.backup_stdout:
                 self._write(time_str, msg, "error")
+    
+    def log_config(self, config: Dict):
+        with open(os.path.join(self.log_dir, "config.txt"), "w") as fp:
+            if isinstance(config, NameSpaceMeta):
+                config_str = str(config)
+            else:
+                if not isinstance(config, dict):
+                    config = config.as_dict()
+                import json
+                config_str = json.dumps(config, sort_keys=True, indent=2)
+            fp.write(config_str)
 
     def log_str(self, msg: str, type: Optional[str]=None, *args, **kwargs):
         if type: type = type.lower()
@@ -210,5 +224,4 @@ class BaseLogger():
     def __exit__(self, exc_type, exc_val, exc_tb):
         if hasattr(self, "stdout_fp"):
             self.stdout_fp.close()
-           
            
