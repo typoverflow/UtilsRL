@@ -24,6 +24,7 @@ class TensorboardLogger(BaseLogger):
     name :  The name of the experiment, will be used to construct the event file name. A suffix 
             will be added to the name to ensure the uniqueness of the log dir. 
     unique_name :  The name of the experiment, but no suffix will be appended. 
+    backup_stdout :  Whether or not backup stdout to files. 
     activate :  Whether this logger is activated.
     level :  The level threshold of the logging message. 
     """
@@ -43,8 +44,7 @@ class TensorboardLogger(BaseLogger):
             return
         from torch.utils.tensorboard.writer import SummaryWriter
         self.tb_dir = os.path.join(self.log_dir, "tb")
-        if not os.path.exists(self.tb_dir):
-            os.makedirs(self.tb_dir)
+        os.makedirs(self.tb_dir, exist_ok=True)
         self.output_dir = self.tb_dir
         self.tb_writer = SummaryWriter(self.tb_dir)
 
@@ -154,8 +154,7 @@ class TensorboardLogger(BaseLogger):
         if path is None:
             path = self.output_dir
         else:
-            if not os.path.exists(path):
-                os.makedirs(path)
+            os.makedirs(path, exist_ok=True)
         save_path = os.path.join(path, name)
         save_fn(protocol)(object, save_path)
         return save_path

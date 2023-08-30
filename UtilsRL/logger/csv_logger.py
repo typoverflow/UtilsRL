@@ -24,6 +24,7 @@ class CsvLogger(BaseLogger):
     name :  The name of the experiment, will be used to construct the event file name. A suffix 
             will be added to the name to ensure the uniqueness of the log path. 
     unique_name :  The name of the experiment, but no suffix will be appended. 
+    backup_stdout :  Whether or not backup stdout to files. 
     activate :  Whether this logger is activated.
     level :  The level threshold of the logging message. 
     """

@@ -113,8 +113,7 @@ class BaseLogger():
         else:
             self.unique_name = make_unique_name(name)
         self.log_dir = os.path.join(log_dir, self.unique_name)
-        if not os.path.exists(self.log_dir):
-            os.makedirs(self.log_dir)
+        os.makedirs(self.log_dir, exist_ok=True)
             
         self.backup_stdout = backup_stdout
         if self.backup_stdout:
