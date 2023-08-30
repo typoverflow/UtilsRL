@@ -6,45 +6,6 @@ from UtilsRL.logger.base_logger import BaseLogger
 from UtilsRL.logger.base_logger import LogLevel, make_unique_name
 
 
-class ColoredLogger(BaseLogger):
-    """Create a logger which prints msg to terminal with ansi colors. 
-    """
-    cmap = {
-        "error": "\033[1;31m", 
-        "debug": "\033[0m", 
-        "warning": "\033[1;33m",
-        "info": "\033[1;34m", 
-        "reset": "\033[0m", 
-    }
-    
-    def __init__(self, activate:bool=True, level: int=LogLevel.WARNING, *args, **kwargs):
-        super().__init__(activate, level)
-        
-    def info(self, msg: str, level: int=LogLevel.INFO):
-        if not self.activate or level < self.level:
-            return
-        time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print("{}[{}]{}\t{}".format(self.cmap["info"], time_fmt, self.cmap["reset"], msg))
-        
-    def debug(self, msg: str, level: int=LogLevel.DEBUG):
-        if not self.activate or level < self.level:
-            return
-        time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print("{}[{}]{}\t{}".format(self.cmap["debug"], time_fmt, self.cmap["reset"], msg))
-        
-    def warning(self, msg: str, level: int=LogLevel.WARNING):
-        if not self.activate or level < self.level:
-            return
-        time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print("{}[{}]{}\t{}".format(self.cmap["warning"], time_fmt, self.cmap["reset"], msg))
-
-    def error(self, msg: str, level: int=LogLevel.ERROR):
-        if not self.activate or level < self.level:
-            return
-        time_fmt = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        print("{}[{}]{}\t{}".format(self.cmap["error"], time_fmt, self.cmap["reset"], msg))
-
-
 class FileLogger(BaseLogger):
     def __init__(self, 
                  log_path: str, 

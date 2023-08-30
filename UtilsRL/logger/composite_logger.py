@@ -8,7 +8,7 @@ from typing import Optional, Any, Union, Sequence
 from UtilsRL.logger.base_logger import make_unique_name, LogLevel
 from UtilsRL.logger.base_logger import BaseLogger
 from UtilsRL.logger.tensorboard_logger import TensorboardLogger
-from UtilsRL.logger.text_logger import ColoredLogger, FileLogger
+from UtilsRL.logger.text_logger import FileLogger
 from UtilsRL.logger.wandb_logger import WandbLogger
 
 
@@ -22,7 +22,7 @@ except ImportError:
 
 class CompositeLogger(BaseLogger):
     logger_registry = {
-        "ColoredLogger": ColoredLogger, 
+        # "ColoredLogger": ColoredLogger, 
         "FileLogger": FileLogger, 
         "TensorboardLogger": TensorboardLogger, 
         "WandbLogger": WandbLogger, 
