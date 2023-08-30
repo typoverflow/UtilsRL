@@ -1,6 +1,7 @@
 from typing import Any, Dict, Optional, Sequence, Union
 
 import os
+import torch
 import pickle
 from datetime import datetime
 
@@ -26,18 +27,14 @@ def save_fn(protocol: str="torch"):
         with open(file, "w") as fp:
             np.save(fp, obj)
             
-    if protocol == "torch":
-        import torch
-        return torch.save
-    else:
-        return {
-            "pickle": pickle_save,
-            "numpy": numpy_save 
-        }.get(protocol)
+    return {
+        "torch": torch.save, 
+        "pickle": pickle_save,
+        "numpy": numpy_save 
+    }.get(protocol)
     
 def load_fn(protocol: str="torch"):
     def torch_load(file):
-        import torch
         return torch.load(file, map_location="cpu")
     
     def pickle_load(file):

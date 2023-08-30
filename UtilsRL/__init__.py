@@ -1,15 +1,8 @@
 
 __version__ = "0.5.9"
 
-from UtilsRL import data_structure, env, exp, logger, math, misc, plot, rl, monitor
+from UtilsRL import exp, logger
 __all__ = [
-    "data_structure", 
-    "env", 
     "exp", 
     "logger", 
-    "math", 
-    "misc", 
-    "plot", 
-    "rl", 
-    "monitor"
 ]

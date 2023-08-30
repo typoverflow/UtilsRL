@@ -1,8 +1,6 @@
 from UtilsRL.exp.argparse import parse_args, argparse_callbacks, register_argparse_callback
 from UtilsRL.exp._seed import *
 from UtilsRL.exp._device import *
-from UtilsRL.exp.snapshot import make_snapshot
-from UtilsRL.exp.precision import set_precision
 
 from UtilsRL.logger import BaseLogger
 from UtilsRL.logger import logger as url_internal_logger
@@ -64,5 +62,3 @@ def setup(args,
     return args
 
     
-register_argparse_callback("UtilsRL.snapshot", make_snapshot)
-register_argparse_callback("UtilsRL.precision", set_precision)

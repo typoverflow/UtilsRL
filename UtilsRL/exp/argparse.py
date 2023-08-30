@@ -110,20 +110,6 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
                 
     traverse_add(file_args, cmd_args)
     
-    # check if there is a callback
-    for key in argparse_callbacks:
-        _args = file_args
-        _keys = key.split(".")
-        for k in _keys:
-            _args = _args.get(k, None)
-            if _args is None:
-                ret = argparse_callbacks[key](None)  # call callback with default None and then break
-                file_args = update_args(file_args, ret, eval=False)
-                break
-        else:
-            ret = argparse_callbacks[key](_args)
-            file_args = update_args(file_args, ret, eval=False)
-    
     return file_args
     
 def update_args(args, new_args: Optional[Union[dict, list]] = None, eval=True):
