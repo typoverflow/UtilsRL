@@ -57,6 +57,24 @@ def load_fn(protocol: str="torch"):
 def fmt_time_now():
     return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+cmap = {
+    None: "\033[0m",  
+    "error": "\033[1;31m", 
+    "debug": "\033[0m", 
+    "warning": "\033[1;33m",
+    "info": "\033[1;34m", 
+    "reset": "\033[0m", 
+}
+
+def log(msg: str, type: str):
+    time_str = fmt_time_now()
+    print("{}[{}]{}\t{}".format(
+        cmap.get(type.lower(), "\033[0m"), 
+        time_str, 
+        cmap["reset"], 
+        msg
+    )) 
+
 
 class LogLevel:
     NOTSET = 0
@@ -85,6 +103,7 @@ class BaseLogger():
         log_dir: str, 
         name: Optional[str]=None, 
         unique_name: Optional[str]=None, 
+        backup_stdout: bool=False, 
         activate: bool=True, 
         level: int=LogLevel.WARNING, 
         *args, **kwargs
@@ -96,11 +115,25 @@ class BaseLogger():
         self.log_dir = os.path.join(log_dir, self.unique_name)
         if not os.path.exists(self.log_dir):
             os.makedirs(self.log_dir)
+            
+        self.backup_stdout = backup_stdout
+        if self.backup_stdout:
+            self.stdout_file = os.path.join(self.log_dir, "stdout.txt")
+            self.stdout_fp = open(self.stdout_file, "w+")
         self.activate = activate
         self.level = level
         
     def can_log(self, level):
         return self.activate and level >= self.level
+    
+    def _write(self, time_str: str, msg: str, type="info"):
+        type = type.upper()
+        self.stdout_fp.write("[{}] ({})\t{}\n".format(
+            time_str, 
+            type, 
+            msg
+        ))
+        self.stdout_fp.flush()
         
     def info(self, msg: str, level: int=LogLevel.INFO):
         if self.can_log(level):
@@ -111,6 +144,9 @@ class BaseLogger():
                 self.cmap["reset"], 
                 msg
             ))
+            if self.backup_stdout:
+                self._write(time_str, msg, "info")
+            
 
     def debug(self, msg: str, level: int=LogLevel.DEBUG):
         if self.can_log(level):
@@ -121,6 +157,8 @@ class BaseLogger():
                 self.cmap["reset"], 
                 msg
             ))
+            if self.backup_stdout:
+                self._write(time_str, msg, "debug")
 
     def warning(self, msg: str, level: int=LogLevel.WARNING):
         if self.can_log(level):
@@ -131,6 +169,8 @@ class BaseLogger():
                 self.cmap["reset"], 
                 msg
             ))
+            if self.backup_stdout:
+                self._write(time_str, msg, "warning")
             
     def error(self, msg: str, level: int=LogLevel.ERROR):
         if self.can_log(level):
@@ -141,22 +181,34 @@ class BaseLogger():
                 self.cmap["reset"], 
                 msg
             ))
+            if self.backup_stdout:
+                self._write(time_str, msg, "error")
 
-    def log_str(self, msg: str, level: Optional[str]=None, *args, **kwargs):
-        if level: level = level.lower()
+    def log_str(self, msg: str, type: Optional[str]=None, *args, **kwargs):
+        if type: type = type.lower()
         level = {
             None: LogLevel.DEBUG, 
             "error": LogLevel.ERROR, 
             "log": LogLevel.INFO, 
             "warning": LogLevel.WARNING, 
             "debug": LogLevel.DEBUG
-        }.get(level)
+        }.get(type)
         if self.can_log(level):
             time_str = fmt_time_now()
             print("{}[{}]{}\t{}".format(
-                self.cmap[level], 
+                self.cmap[type], 
                 time_str, 
                 self.cmap["reset"], 
                 msg
-            ))         
-        
+            ))      
+            if self.backup_stdout:
+                self._write(time_str, msg, type)
+    
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if hasattr(self, "stdout_fp"):
+            self.stdout_fp.close()
+           
+           

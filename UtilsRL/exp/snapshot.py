@@ -5,6 +5,7 @@ from UtilsRL.logger import logger
 
 from typing import Optional, Dict, Union
 
+
 def make_snapshot(args: Optional[Union[Dict, NameSpaceMeta, str]]):
     if args is None:
         return {

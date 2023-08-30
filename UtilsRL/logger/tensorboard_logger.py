@@ -33,11 +33,12 @@ class TensorboardLogger(BaseLogger):
         log_dir: str, 
         name: Optional[str]=None, 
         unique_name: Optional[str]=None, 
+        backup_stdout: bool=False, 
         activate: bool=True, 
         level=LogLevel.WARNING, 
         *args, **kwargs
     ):
-        super().__init__(log_dir, name, unique_name, activate, level)
+        super().__init__(log_dir, name, unique_name, backup_stdout, activate, level)
         if not self.activate:
             return
         from torch.utils.tensorboard.writer import SummaryWriter
@@ -180,4 +181,6 @@ class TensorboardLogger(BaseLogger):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.tb_writer.close()
         
-        
+if __name__ == "__main__":
+    logger = TensorboardLogger("./log", backup_stdout=True)
+    logger.info("asdfa")

@@ -5,7 +5,7 @@ from UtilsRL.exp.snapshot import make_snapshot
 from UtilsRL.exp.precision import set_precision
 
 from UtilsRL.logger import BaseLogger
-from UtilsRL.logger import logger as url_logger_module_logger
+from UtilsRL.logger import logger as url_internal_logger
 
 from typing import Any, Optional
 
@@ -33,7 +33,7 @@ def setup(args,
     elif "logger" in args:
         _logger = args["logger"]
     else:
-        _logger = url_logger_module_logger
+        _logger = url_internal_logger
     args["logger"] = _logger
         
     if not _device is None:

@@ -33,18 +33,19 @@ class CsvLogger(BaseLogger):
         log_dir: str, 
         name: Optional[str]=None, 
         unique_name: Optional[str]=None, 
+        backup_stdout: bool=False, 
         activate: bool=True, 
         level=LogLevel.WARNING, 
         *args, **kwargs
     ):
-        super().__init__(log_dir, name, unique_name, activate, level)
+        super().__init__(log_dir, name, unique_name, backup_stdout, activate, level)
         if not self.activate:
             return
         self.csv_dir = os.path.join(self.log_dir, "csv")
-        self.csv_path = os.path.join(self.csv_dir, "output.csv")
+        self.csv_file = os.path.join(self.csv_dir, "output.csv")
         if not os.path.exists(self.csv_dir):
             os.makedirs(self.csv_dir)
-        self.csv_fp = open(self.csv_path, "w+")
+        self.csv_fp = open(self.csv_file, "w+")
         self.csv_sep = ","
         self.csv_keys = ["step"]
         
@@ -74,14 +75,14 @@ class CsvLogger(BaseLogger):
             self.csv_keys.extend(extra_keys)
             self.csv_fp.seek(0)
             lines = self.csv_fp.readlines()
-            self.csv_fp = open(self.csv_path, "w+t")
+            self.csv_fp = open(self.csv_file, "w+t")
             self.csv_fp.seek(0)
             self.csv_fp.write(",".join(self.csv_keys)+"\n")
             for line in lines[1:]:
                 self.csv_fp.write(line[:-1])
                 self.csv_fp.write(self.csv_sep*len(extra_keys))
                 self.csv_fp.write("\n")
-            self.csv_fp = open(self.csv_path, "a+t")
+            self.csv_fp = open(self.csv_file, "a+t")
         # write new entry
         values_to_write = [
             str(tag_scalar_dict.get(key, "")) if key != "step" else str(int(step))
