@@ -7,5 +7,7 @@ tests/
 build/
 dist/
 tb/
+log
+wandb
 
 **/*cpython*

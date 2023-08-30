@@ -17,7 +17,8 @@ def get_install_requires():
         "tqdm", 
         "numpy", 
         "torch", 
-        "pandas"
+        "pandas", 
+        "opencv-python"
     ]
 
 def get_extras_require():
