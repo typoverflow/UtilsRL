@@ -3,14 +3,9 @@ from typing import Dict as DictLike
 
 import os
 import numpy as np
-import torch
 from UtilsRL.logger.base_logger import (
     BaseLogger, 
     LogLevel, 
-    fmt_time_now,
-    load_fn, 
-    save_fn, 
-    make_unique_name,
 )
 from UtilsRL.misc.namespace import NameSpaceMeta
 
@@ -24,6 +19,9 @@ class WandbLogger(BaseLogger):
     log_dir :  The base dir where the logger logs to.
     name :  The name of the experiment, will be used to construct the event file name. A suffix 
             will be added to the name to ensure the uniqueness of the log dir. 
+    config :  The the configs or hyper-parameters of the experiment, should be dict-like. 
+    project :  The project for wandb. 
+    entity :  The entity for wandb. 
     unique_name :  The name of the experiment, but no suffix will be appended. 
     backup_stdout :  Whether or not backup stdout to files. 
     activate :  Whether this logger is activated.

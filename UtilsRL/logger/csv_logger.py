@@ -3,14 +3,9 @@ from typing import Dict as DictLike
 
 import os
 import numpy as np
-import torch
 from UtilsRL.logger.base_logger import (
     BaseLogger, 
     LogLevel, 
-    fmt_time_now,
-    load_fn, 
-    save_fn, 
-    make_unique_name,
 )
 
 
@@ -53,7 +48,7 @@ class CsvLogger(BaseLogger):
     def log_scalars(
         self, 
         main_tag: str, 
-        tag_scalar_dict: DictLike[str, float], 
+        tag_scalar_dict: DictLike[str, Union[float, int]], 
         step: Optional[int]=None
     ):
         """Add scalar to CSV file. 
@@ -95,7 +90,7 @@ class CsvLogger(BaseLogger):
     def log_scalar(
         self, 
         tag: str, 
-        value: float, 
+        value: Union[float, int], 
         step: Optional[int]=None
     ):
         """Add scalar to CSV summary. 
@@ -115,20 +110,4 @@ class CsvLogger(BaseLogger):
     
     def __exit__(self, exec_type, exc_val, exc_tb):
         self.csv_fp.close()
-        
-        
-if __name__ == "__main__":
-    logger = CsvLogger(
-        "./log", 
-    )
-    logger.log_scalars("eval", {
-        "a": 1, 
-        "b": 2
-    }, step=0)
-    logger.log_scalars("eval", {
-        "a": 3, 
-        "c": 4
-    }, step=1)
-    logger.log_scalar("test", 5, step=0)
-    
         

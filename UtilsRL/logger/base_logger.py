@@ -2,7 +2,6 @@ from typing import Any, Dict, Optional, Sequence, Union
 
 import os
 import pickle
-from abc import ABC, abstractmethod
 from datetime import datetime
 
 import numpy as np
@@ -108,6 +107,9 @@ class BaseLogger():
         level: int=LogLevel.WARNING, 
         *args, **kwargs
     ):
+        self.activate = activate
+        if not self.activate:
+            return
         if unique_name:
             self.unique_name = unique_name
         else:
@@ -119,7 +121,6 @@ class BaseLogger():
         if self.backup_stdout:
             self.stdout_file = os.path.join(self.log_dir, "stdout.txt")
             self.stdout_fp = open(self.stdout_file, "w+")
-        self.activate = activate
         self.level = level
         
     def can_log(self, level):

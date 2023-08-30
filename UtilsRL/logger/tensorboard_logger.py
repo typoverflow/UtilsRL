@@ -3,14 +3,11 @@ from typing import Dict as DictLike
 
 import os
 import numpy as np
-import torch
 from UtilsRL.logger.base_logger import (
     BaseLogger, 
     LogLevel, 
-    fmt_time_now,
     load_fn, 
     save_fn, 
-    make_unique_name,
 )
 
 
@@ -51,7 +48,7 @@ class TensorboardLogger(BaseLogger):
     def log_scalar(
         self, 
         tag: str, 
-        value: float, 
+        value: Union[float, int], 
         step: Optional[int]=None
     ):
         """Add scalar to tensorboard summary.
@@ -67,7 +64,7 @@ class TensorboardLogger(BaseLogger):
     def log_scalars(
         self,
         main_tag: str, 
-        tag_scalar_dict: DictLike[str, float], 
+        tag_scalar_dict: DictLike[str, Union[float, int]], 
         step: Optional[int]=None
     ):
         """Add scalars which share the main tag to tensorboard summary.
@@ -89,7 +86,7 @@ class TensorboardLogger(BaseLogger):
     def log_image(
         self, 
         tag: str, 
-        img_tensor: Union[torch.Tensor, np.ndarray], 
+        img_tensor: Any, 
         step: Optional[int]=None, 
         dataformat: str="CHW"
     ):
@@ -109,9 +106,9 @@ class TensorboardLogger(BaseLogger):
     def log_video(
         self, 
         tag: str, 
-        vid_tensor: Union[torch.Tensor, np.ndarray], 
+        vid_tensor: Any, 
         step: Optional[int]=None, 
-        fps: Optional[Union[int, float]]=4, 
+        fps: Optional[Union[float, int]]=4, 
     ):
         """Add a piece of video to tensorboard summary. Note that this requires ``moviepy`` package.
 
@@ -141,7 +138,6 @@ class TensorboardLogger(BaseLogger):
         self,
         name: str, 
         object: Any, 
-        type: Optional[str]="model", 
         path: Optional[str]=None, 
         protocol: str="torch"
     ):
@@ -180,6 +176,3 @@ class TensorboardLogger(BaseLogger):
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.tb_writer.close()
         
-if __name__ == "__main__":
-    logger = TensorboardLogger("./log", backup_stdout=True)
-    logger.info("asdfa")
