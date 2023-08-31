@@ -63,7 +63,7 @@ class CompositeLogger(BaseLogger):
             config.update(logger_config[logger_cls])
             config["backup_stdout"] = False # force sub loggers not to backup to avoid multiple file handles
             self.logger_config[logger_cls] = config
-            print(logger_cls, config)
+            # print(logger_cls, config)
             if config.get("activate", True) == False:
                 continue
             self.loggers[logger_cls] = self.logger_registry[logger_cls](
@@ -76,6 +76,8 @@ class CompositeLogger(BaseLogger):
         for _logger_cls, _logger in self.loggers.items():
             if hasattr(_logger, __name):
                 return _logger.__getattribute__(__name)
+        else:
+            raise AttributeError(f"CompositeLogger, as well as its components {self.logger_cls}, does not have attribute {str(__name)}.")
 
     def _call_by_group(self, func: str, group: list, *args, **kwargs):
         return {
@@ -130,7 +132,7 @@ class CompositeLogger(BaseLogger):
         return self._call_by_group(
             func="log_video", 
             group=["TensorboardLogger"], 
-            tag=tag, vid_tensor=vid_tensor, step=step, fps=fps, dataformat=dataformat
+            tag=tag, vid_tensor=vid_tensor, step=step, fps=fps
         )
         
     def log_histogram(

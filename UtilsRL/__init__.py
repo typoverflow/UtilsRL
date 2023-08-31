@@ -1,5 +1,5 @@
 
-__version__ = "0.6.0"
+__version__ = "0.6.1"
 
 from UtilsRL import exp, logger
 __all__ = [
