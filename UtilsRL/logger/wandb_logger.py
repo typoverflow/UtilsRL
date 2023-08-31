@@ -65,7 +65,7 @@ class WandbLogger(BaseLogger):
         tag_scalar_dict: DictLike[str, Union[float, int]], 
         step: Optional[int]=None
     ):
-        if not self.activate:
+        if not self.can_log():
             return
         if main_tag is None or main_tag == "":
             pass

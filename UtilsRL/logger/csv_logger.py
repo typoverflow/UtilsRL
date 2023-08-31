@@ -57,7 +57,7 @@ class CsvLogger(BaseLogger):
         value :  value to record. 
         step :  global timestep of the scalar. 
         """
-        if not self.activate:
+        if not self.can_log():
             return
         if main_tag is None or main_tag == "":
             pass

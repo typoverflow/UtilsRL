@@ -71,19 +71,20 @@ class CompositeLogger(BaseLogger):
             )
             self.logger_cls.add(logger_cls)
         
-    def __getattr__(self, __name: str):
-        # if the method does not exist for CompositeLogger
-        for _logger_cls, _logger in self.loggers.items():
-            if hasattr(_logger, __name):
-                return _logger.__getattribute__(__name)
-        else:
-            raise AttributeError(f"CompositeLogger, as well as its components {self.logger_cls}, does not have attribute {str(__name)}.")
+    # def __getattr__(self, __name: str):
+    #     # if the method does not exist for CompositeLogger
+    #     for _logger_cls, _logger in self.loggers.items():
+    #         if hasattr(_logger, __name):
+    #             return _logger.__getattribute__(__name)
+    #     else:
+    #         raise AttributeError(f"CompositeLogger, as well as its components {self.logger_cls}, does not have attribute {str(__name)}.")
 
-    def _call_by_group(self, func: str, group: list, *args, **kwargs):
-        return {
-            _logger_cls: getattr(self.loggers[_logger_cls], func)(*args, **kwargs)\
-                for _logger_cls in group if _logger_cls in self.logger_cls
-        }
+    def _try_call_by_group(self, func: str, group: list, *args, **kwargs):
+        if self.can_log():
+            return {
+                _logger_cls: getattr(self.loggers[_logger_cls], func)(*args, **kwargs)\
+                    for _logger_cls in group if _logger_cls in self.logger_cls
+            }
         
     def log_scalar(
         self, 
@@ -91,7 +92,7 @@ class CompositeLogger(BaseLogger):
         value: Union[float, int], 
         step: Optional[int] = None
     ):
-        return self._call_by_group(
+        return self._try_call_by_group(
             func="log_scalar", 
             group=["TensorboardLogger", "WandbLogger"], 
             tag=tag, value=value, step=step
@@ -103,7 +104,7 @@ class CompositeLogger(BaseLogger):
         tag_scalar_dict: DictLike[str, Union[float, int]], 
         step: Optional[int]=None
     ):
-        return self._call_by_group(
+        return self._try_call_by_group(
             func="log_scalars", 
             group=["TensorboardLogger", "WandbLogger"], 
             main_tag=main_tag, tag_scalar_dict=tag_scalar_dict, step=step
@@ -116,7 +117,7 @@ class CompositeLogger(BaseLogger):
         step: Optional[int]=None, 
         dataformat: str="CHW"
     ):
-        return self._call_by_group(
+        return self._try_call_by_group(
             func="log_image", 
             group=["TensorboardLogger"], 
             tag=tag, img_tensor=img_tensor, step=step, dataformat=dataformat
@@ -129,7 +130,7 @@ class CompositeLogger(BaseLogger):
         step: Optional[int] = None, 
         fps: Optional[Union[float, int]] = 4, 
     ):
-        return self._call_by_group(
+        return self._try_call_by_group(
             func="log_video", 
             group=["TensorboardLogger"], 
             tag=tag, vid_tensor=vid_tensor, step=step, fps=fps
@@ -141,7 +142,7 @@ class CompositeLogger(BaseLogger):
         values: Union[np.ndarray, List],
         step: Optional[int]=None, 
     ):
-        return self._call_by_group(
+        return self._try_call_by_group(
             func="log_histogram", 
             group=["TensorboardLogger"], 
             tag=tag, values=values, step=step
@@ -154,7 +155,7 @@ class CompositeLogger(BaseLogger):
         path: Optional[str]=None, 
         protocol: str="torch"
     ):
-        return self._call_by_group(
+        return self._try_call_by_group(
             func="log_object",
             group=["TensorboardLogger"], 
             name=name, object=object, path=path, protocol=protocol

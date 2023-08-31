@@ -57,7 +57,7 @@ class TensorboardLogger(BaseLogger):
         value :  value to record.
         step :  global timestep of the scalar. 
         """
-        if not self.activate:
+        if not self.can_log():
             return
         self.tb_writer.add_scalar(tag, value, step)
         
@@ -73,7 +73,7 @@ class TensorboardLogger(BaseLogger):
         tag_scalar_dict :  a dictionary of tag and value.
         step :  global timestep of the scalars.
         """
-        if not self.activate:
+        if not self.can_log():
             return
         if main_tag is None or main_tag == "":
             main_tag = ""
@@ -101,6 +101,8 @@ class TensorboardLogger(BaseLogger):
         :param global_step: global step. 
         :param dataformats: This parameter specifies the meaning of each dimension of the input tensor.
         """
+        if not self.can_log():
+            return
         self.tb_writer.add_image(tag, img_tensor, step, dataformats=dataformat)
         
     def log_video(
@@ -118,6 +120,8 @@ class TensorboardLogger(BaseLogger):
         :param fps: frames per second.
         :param dataformat: specify different permutation of the video tensor.
         """
+        if not self.can_log():
+            return
         self.tb_writer.add_video(tag, vid_tensor, step, fps)
 
     def log_histogram(
@@ -132,6 +136,8 @@ class TensorboardLogger(BaseLogger):
         :param values: the values, should be list or np.ndarray. 
         :param global_step: global step.
         """
+        if not self.can_log():
+            return
         self.tb_writer.add_histogram(tag, np.asarray(values), step)
 
     def log_object(
@@ -147,6 +153,8 @@ class TensorboardLogger(BaseLogger):
         object :  the object to save.
         path :  the path to save the object, will be created if not exist; will be set to `self.tb_dir` if None.
         """
+        if not self.can_log():
+            return None
         if path is None:
             path = self.output_dir
         else:
@@ -166,6 +174,8 @@ class TensorboardLogger(BaseLogger):
         name :  the identifier of the object.
         path :  the path from which to load the object, default to `self.tb_dir` if None.
         """
+        if not self.can_log():
+            return None
         if path is None:
             path = self.output_dir
         return load_fn(protocol)(os.path.join(path, name))

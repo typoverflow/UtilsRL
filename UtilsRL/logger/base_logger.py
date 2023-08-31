@@ -123,7 +123,7 @@ class BaseLogger():
             self.stdout_fp = open(self.stdout_file, "w+")
         self.level = level
         
-    def can_log(self, level):
+    def can_log(self, level=LogLevel.INFO):
         return self.activate and level >= self.level
     
     def _write(self, time_str: str, msg: str, type="info"):
@@ -185,15 +185,16 @@ class BaseLogger():
                 self._write(time_str, msg, "error")
     
     def log_config(self, config: Dict):
-        with open(os.path.join(self.log_dir, "config.txt"), "w") as fp:
-            if isinstance(config, NameSpaceMeta):
-                config_str = str(config)
-            else:
-                if not isinstance(config, dict):
-                    config = config.as_dict()
-                import json
-                config_str = json.dumps(config, sort_keys=True, indent=2)
-            fp.write(config_str)
+        if self.can_log():
+            with open(os.path.join(self.log_dir, "config.txt"), "w") as fp:
+                if isinstance(config, NameSpaceMeta):
+                    config_str = str(config)
+                else:
+                    if not isinstance(config, dict):
+                        config = config.as_dict()
+                    import json
+                    config_str = json.dumps(config, sort_keys=True, indent=2)
+                fp.write(config_str)
 
     def log_str(self, msg: str, type: Optional[str]=None, *args, **kwargs):
         if type: type = type.lower()
