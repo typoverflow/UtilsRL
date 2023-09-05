@@ -40,7 +40,7 @@ class NameSpaceMeta(type):
         classdict = {}
         for key, value in maps.items():
             if nested and isinstance(value, dict):
-                classdict[key] = NameSpaceMeta.__call__(key, value, module=module, qualname=qualname, type=type)
+                classdict[key] = NameSpaceMeta.__call__(cls, key, value, module=module, qualname=qualname, type=type)
             else:
                 classdict[key] = value
         new_namespace_cls = NameSpaceMeta.__new__(meta_cls, name, bases, classdict)

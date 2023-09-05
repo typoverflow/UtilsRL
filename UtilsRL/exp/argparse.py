@@ -1,7 +1,7 @@
 import argparse
 from collections import OrderedDict
 from types import ModuleType, FrameType
-from typing import Optional, Union, Dict, Any
+from typing import Optional, Union, Dict, Any, Callable
 
 from numpy import isin, nested_iters
     
@@ -74,16 +74,33 @@ def parse_file_args(path, convert=True):
     return file_args
     
 
-def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True) -> Union[NameSpaceMeta, Dict[str, Any]]:
-    """Parse args from json file, yaml, python file or plain old dict. \
-        Command-line argumnets will be parsed as well, and will be used to overwrite \
-        the init arguments. 
+def parse_args(
+    path: Optional[Union[str, dict, ModuleType]]=None, 
+    post_init: Optional[Callable]=None, 
+    convert=True
+) -> Union[NameSpaceMeta, Dict[str, Any]]:
+    """
+    Parse the arguments from json, yaml or python file and the command line. This function first
+    parses arguments from the file `path`, and then overwrite or add arguments from the command
+    line. The file arguments can be parsed either by passing the path when calling `parse_args` or 
+    via the `--config` option, for example:
+    `python some_script.py --config /path/to/file.json --learning_rate 1e-4`
+    This function will parse the `/path/to/file.json` and then overwrite the argument `learning_rate`
+    with 1e-4. 
     
-    :param path: can be `str` or python `module` object. If it is a string, it will be \
-            interpreted as the path to the config file. If it is a python module, \
-            then its attributes will be extracted to from an argument dict. 
-    :param convert: whether to convert the final argument dict to :class:`~UtilsRL.misc.NameSpace`, \
-            which brings lots of convenience. Default to `True`. 
+    By default, the arguments will be wrap into a `NameSpace` class. You can access the arguments via 
+    both dict look-up and attribute accessing. We also support post initialization, by passing a post init
+    function, which will be called with the parsed arguments. You should modify the arguments in-place in
+    the post initialization function. 
+        
+    Parameters
+    ----------
+    path :  The path to the file arguments. We support json, yaml and python files. If its value is None, then
+        the program will try to look up the `config` option in the command line arguments and take its value
+        as the path to the file arguments. 
+    post_init :  The post initialzation function, which will be called with the parsed arguments and should 
+        modify the arguments in-place. 
+    convert :  Whether or not convert the parse arguments to NameSpace object. 
     """
     
     cmd_path, cmd_args = parse_cmd_args(convert=convert)
@@ -109,6 +126,9 @@ def parse_args(path: Optional[Union[str, dict, ModuleType]] = None, convert=True
                     old[new_key] = new_value
                 
     traverse_add(file_args, cmd_args)
+    
+    if post_init is not None:
+        post_init(file_args)
     
     return file_args
     
