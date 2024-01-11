@@ -42,7 +42,7 @@ class TensorboardLogger(BaseLogger):
         from torch.utils.tensorboard.writer import SummaryWriter
         self.tb_dir = os.path.join(self.log_dir, "tb")
         os.makedirs(self.tb_dir, exist_ok=True)
-        self.output_dir = self.tb_dir
+        # self.output_dir = self.tb_dir
         self.tb_writer = SummaryWriter(self.tb_dir)
 
     def log_scalar(
@@ -140,46 +140,6 @@ class TensorboardLogger(BaseLogger):
             return
         self.tb_writer.add_histogram(tag, np.asarray(values), step)
 
-    def log_object(
-        self,
-        name: str, 
-        object: Any, 
-        path: Optional[str]=None, 
-        protocol: str="torch"
-    ):
-        """Save a Python object to the given path.
-        
-        name :  the identifier of the object.
-        object :  the object to save.
-        path :  the path to save the object, will be created if not exist; will be set to `self.tb_dir` if None.
-        """
-        if not self.can_log():
-            return None
-        if path is None:
-            path = self.output_dir
-        else:
-            os.makedirs(path, exist_ok=True)
-        save_path = os.path.join(path, name)
-        save_fn(protocol)(object, save_path)
-        return save_path
-    
-    def load_object(
-        self, 
-        name: str, 
-        path: Optional[str]=None, 
-        protocol="torch"
-    ):
-        """Load a Python object from the given path.
-        
-        name :  the identifier of the object.
-        path :  the path from which to load the object, default to `self.tb_dir` if None.
-        """
-        if not self.can_log():
-            return None
-        if path is None:
-            path = self.output_dir
-        return load_fn(protocol)(os.path.join(path, name))
-    
     def __enter__(self):
         return self
 

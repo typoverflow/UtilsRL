@@ -121,6 +121,7 @@ class BaseLogger():
         if self.backup_stdout:
             self.stdout_file = os.path.join(self.log_dir, "stdout.txt")
             self.stdout_fp = open(self.stdout_file, "w+")
+        self.output_dir = os.path.join(self.log_dir, "output")
         self.level = level
         
     def can_log(self, level=LogLevel.INFO):
@@ -184,17 +185,32 @@ class BaseLogger():
             if self.backup_stdout:
                 self._write(time_str, msg, "error")
     
-    def log_config(self, config: Dict):
+    def log_config(self, config: Dict, type="txt"):
         if self.can_log():
-            with open(os.path.join(self.log_dir, "config.txt"), "w") as fp:
-                if isinstance(config, NameSpaceMeta):
+            if isinstance(config, NameSpaceMeta):
+                if type != "txt": 
+                    self.warning("NameSpace object can only be saved as txt. Defaulting to txt.")
+                with open(os.path.join(self.log_dir, "config.txt"), "w") as fp:
                     config_str = str(config)
-                else:
-                    if not isinstance(config, dict):
-                        config = config.as_dict()
+                    fp.write(config_str)
+            else:
+                if not isinstance(config, dict):
+                    config = config.as_dict()
+                if type == "txt":
                     import json
-                    config_str = json.dumps(config, sort_keys=True, indent=2)
-                fp.write(config_str)
+                    with open(os.path.join(self.log_dir, "config.txt"), "w") as fp:
+                        config_str = json.dumps(config, indent=2)
+                        fp.write(config_str)
+                elif type == "yaml":
+                    import yaml
+                    with open(os.path.join(self.log_dir, "config.yaml"), "w") as fp:
+                        yaml.dump(config, fp)
+                elif type == "json":
+                    import json
+                    with open(os.path.join(self.log_dir, "config.json"), "w") as fp:
+                        json.dump(config, fp, indent=2)
+                else:
+                    raise TypeError(f"log_config got unsupported protocol: {type}")
 
     def log_str(self, msg: str, type: Optional[str]=None, *args, **kwargs):
         if type: type = type.lower()
@@ -215,6 +231,45 @@ class BaseLogger():
             ))      
             if self.backup_stdout:
                 self._write(time_str, msg, type)
+
+    def log_object(
+        self,
+        name: str, 
+        object: Any, 
+        path: Optional[str]=None, 
+        protocol: str="torch"
+    ):
+        """Save a Python object to the given path.
+        
+        name :  the identifier of the object.
+        object :  the object to save.
+        path :  the path to save the object, will be created if not exist; will be set to `self.tb_dir` if None.
+        """
+        if not self.can_log():
+            return None
+        if path is None:
+            path = self.output_dir
+        os.makedirs(path, exist_ok=True)
+        save_path = os.path.join(path, name)
+        save_fn(protocol)(object, save_path)
+        return save_path
+    
+    def load_object(
+        self, 
+        name: str, 
+        path: Optional[str]=None, 
+        protocol="torch"
+    ):
+        """Load a Python object from the given path.
+        
+        name :  the identifier of the object.
+        path :  the path from which to load the object, default to `self.tb_dir` if None.
+        """
+        if not self.can_log():
+            return None
+        if path is None:
+            path = self.output_dir
+        return load_fn(protocol)(os.path.join(path, name))
     
     def __enter__(self):
         return self
