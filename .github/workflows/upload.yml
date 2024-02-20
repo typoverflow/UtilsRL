@@ -45,7 +45,7 @@ jobs:
           #          [ "v"`cat VERSION` = ${GITHUB_REF##*/} ] && echo "VERSION=${GITHUB_REF##*/}" >> $GITHUB_ENV
 
       - name: build
-        uses: pypa/cibuildwheel@v2.8.0
+        uses: pypa/cibuildwheel@v2.16.5
         env:
           CIBW_ARCHS_MACOS: auto universal2
       
