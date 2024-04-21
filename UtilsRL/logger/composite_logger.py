@@ -94,7 +94,7 @@ class CompositeLogger(BaseLogger):
     ):
         return self._try_call_by_group(
             func="log_scalar", 
-            group=["TensorboardLogger", "WandbLogger"], 
+            group=["TensorboardLogger", "WandbLogger", "CsvLogger"], 
             tag=tag, value=value, step=step
         )
         
@@ -106,7 +106,7 @@ class CompositeLogger(BaseLogger):
     ):
         return self._try_call_by_group(
             func="log_scalars", 
-            group=["TensorboardLogger", "WandbLogger"], 
+            group=["TensorboardLogger", "WandbLogger", "CsvLogger"], 
             main_tag=main_tag, tag_scalar_dict=tag_scalar_dict, step=step
         )
         

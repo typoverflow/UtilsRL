@@ -1,6 +1,7 @@
 from .base_logger import BaseLogger, fmt_time_now
 from .tensorboard_logger import TensorboardLogger
 from .wandb_logger import WandbLogger
+from .csv_logger import CsvLogger
 from .composite_logger import CompositeLogger
 
 cmap = {
