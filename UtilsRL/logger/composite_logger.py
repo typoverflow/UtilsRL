@@ -48,12 +48,12 @@ class CompositeLogger(BaseLogger):
             return
         # create loggers
         default_config = {
-            "log_dir": log_dir, 
-            "name": name, 
-            "unique_name": unique_name, 
+            "log_dir": self.log_dir, 
+            # "name": name, 
+            "unique_name": self.unique_name, 
             "backup_stdout": False,
-            "activate": activate, 
-            "level": level
+            "activate": self.activate, 
+            "level": self.level
         }
         self.loggers = dict()
         self.logger_config = dict()
@@ -71,14 +71,6 @@ class CompositeLogger(BaseLogger):
             )
             self.logger_cls.add(logger_cls)
         
-    # def __getattr__(self, __name: str):
-    #     # if the method does not exist for CompositeLogger
-    #     for _logger_cls, _logger in self.loggers.items():
-    #         if hasattr(_logger, __name):
-    #             return _logger.__getattribute__(__name)
-    #     else:
-    #         raise AttributeError(f"CompositeLogger, as well as its components {self.logger_cls}, does not have attribute {str(__name)}.")
-
     def _try_call_by_group(self, func: str, group: list, *args, **kwargs):
         if self.can_log():
             return {
