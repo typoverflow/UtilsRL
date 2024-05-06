@@ -48,7 +48,7 @@ class CompositeLogger(BaseLogger):
             return
         # create loggers
         default_config = {
-            "log_dir": self.log_dir, 
+            "log_dir": log_dir, 
             # "name": name, 
             "unique_name": self.unique_name, 
             "backup_stdout": False,
